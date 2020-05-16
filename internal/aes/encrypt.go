@@ -9,10 +9,17 @@ import (
 )
 
 // Encrypt encrypts an array of bytes with crypto/aes. Returns: cipher, key.
-func Encrypt(data []byte) ([]byte, string, error) {
-	key, err := generateKey()
-	if err != nil {
-		return nil, "", err
+func Encrypt(data []byte, preKey ...[]byte) ([]byte, string, error) {
+	var err error
+	var key []byte
+
+	if len(preKey) <= 0 {
+		key, err = generateKey()
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		key = preKey[0]
 	}
 
 	block, err := aes.NewCipher(key)

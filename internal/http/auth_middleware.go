@@ -19,8 +19,6 @@ type user struct {
 	Username string
 }
 
-const identityKey = "username"
-
 var authMiddleware *jwt.GinJWTMiddleware
 
 func init() {
@@ -31,11 +29,11 @@ func init() {
 	authMiddleware, err = jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "keiio",
 		Key:         key,
-		IdentityKey: identityKey,
+		IdentityKey: "username",
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
-					identityKey: v.Username,
+					"username": v.Username,
 				}
 			}
 			return jwt.MapClaims{}
@@ -43,7 +41,7 @@ func init() {
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
 			return &user{
-				Username: claims[identityKey].(string),
+				Username: claims["username"].(string),
 			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {

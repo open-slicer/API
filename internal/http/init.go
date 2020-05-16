@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
 )
 
@@ -13,6 +14,8 @@ func Start() {
 
 // register registers all routes and middleware.
 func register(r *gin.Engine) {
+	authMiddlewareFunc := authMiddleware.MiddlewareFunc()
+
 	v1 := r.Group("/api/v1")
 	{
 		auth := v1.Group("/auth")
@@ -22,11 +25,19 @@ func register(r *gin.Engine) {
 			auth.GET("/refresh", authMiddleware.RefreshHandler)
 		}
 
-		ws := v1.Group("/ws")
-		ws.Use(authMiddleware.MiddlewareFunc())
+		messages := v1.Group("/messages")
+		messages.Use(authMiddlewareFunc)
 		{
-			ws.GET("", func(c *gin.Context) {
-				handleWS(c.Writer, c.Request)
+		}
+
+		websocket := v1.Group("/ws")
+		websocket.Use(authMiddlewareFunc)
+		{
+			controller := ws.NewController()
+			go controller.Run()
+
+			websocket.GET("", func(c *gin.Context) {
+				ws.Handle(controller, c)
 			})
 		}
 	}

@@ -33,8 +33,8 @@ func handleRegister(c *gin.Context) {
 
 	code := http.StatusCreated
 	c.JSON(code, gin.H{
-		"code": code,
-		"message": "registered; login required",
+		"code":     code,
+		"message":  "registered; login required",
 		"username": req.Username,
 	})
 }
