@@ -50,7 +50,7 @@ func init() {
 				return "", jwt.ErrMissingLoginValues
 			}
 
-			password, err := db.Client.Get("user:" + req.Username).Result()
+			password, err := db.Redis.Get("user:" + req.Username).Result()
 			if err == db.Nil {
 				return nil, jwt.ErrFailedAuthentication
 			}

@@ -12,7 +12,7 @@ func handleRegister(c *gin.Context) {
 	req := requestLogin{}
 	chk(http.StatusBadRequest, c.ShouldBindJSON(&req), c)
 
-	_, err := db.Client.Get("user:" + req.Username).Result()
+	_, err := db.Redis.Get("user:" + req.Username).Result()
 	if err == nil {
 		chk(http.StatusConflict, errors.New("user already exists"), c)
 		return
@@ -29,7 +29,7 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	go db.Client.Set("user:"+req.Username, hash, 0)
+	go db.Redis.Set("user:"+req.Username, hash, 0)
 
 	code := http.StatusCreated
 	c.JSON(code, gin.H{
