@@ -15,7 +15,7 @@ type Configuration struct {
 		Redis struct {
 			Address  string `yaml:"address"`
 			Password string `yaml:"password"`
-			ID       int    `yaml:"id"`
+			DB       int    `yaml:"DB"`
 		} `yaml:"redis"`
 		Cassandra struct {
 			Hosts    []string `yaml:"hosts"`
