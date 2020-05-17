@@ -3,10 +3,11 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"slicerapi/internal/db"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type userModel struct {

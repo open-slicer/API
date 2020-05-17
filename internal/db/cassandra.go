@@ -1,12 +1,15 @@
 package db
 
 import (
-	"github.com/gocql/gocql"
 	"slicerapi/internal/util"
+
+	"github.com/gocql/gocql"
 )
 
+// Cassandra is the main gocql session used by the app.
 var Cassandra *gocql.Session
 
+// ConnectCassandra creates a gocql session and assigns Cassandra to it.
 func ConnectCassandra() error {
 	cluster := gocql.NewCluster(util.Config.DB.Cassandra.Hosts...)
 	cluster.Authenticator = gocql.PasswordAuthenticator{

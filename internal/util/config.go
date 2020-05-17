@@ -26,6 +26,7 @@ type Configuration struct {
 	} `yaml:"db"`
 }
 
+// Config is the Configuration instance of _config.yml.
 var Config Configuration
 
 // init reads _config.yml into Config.

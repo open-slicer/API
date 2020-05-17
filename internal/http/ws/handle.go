@@ -1,10 +1,11 @@
 package ws
 
 import (
-	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/gin-gonic/gin"
 	"slicerapi/internal/util"
 	"time"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gorilla/websocket"
 )
@@ -40,7 +41,7 @@ type wsMessage struct {
 }
 
 type client struct {
-	controller *controller
+	controller *Controller
 	conn       *websocket.Conn
 	send       chan []byte
 	username   string
@@ -127,7 +128,7 @@ func (c *client) writePump() {
 }
 
 // Handle handles new websocket connections.
-func Handle(controller *controller, c *gin.Context) {
+func Handle(controller *Controller, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	util.Chk(err, true)
 	if err != nil {

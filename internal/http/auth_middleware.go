@@ -2,12 +2,13 @@ package http
 
 import (
 	"crypto/rand"
-	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"slicerapi/internal/db"
 	"slicerapi/internal/util"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type requestLogin struct {

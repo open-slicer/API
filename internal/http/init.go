@@ -1,11 +1,13 @@
 package http
 
 import (
-	"github.com/gin-gonic/gin"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
+
+	"github.com/gin-gonic/gin"
 )
 
+// Start starts the HTTP server.
 func Start() {
 	r := gin.New()
 	register(r)

@@ -1,5 +1,6 @@
 package db
 
+// Connect connects to both Redis and Cassandra.
 func Connect() error {
 	if err := ConnectRedis(); err != nil {
 		return err

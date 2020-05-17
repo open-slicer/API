@@ -1,8 +1,9 @@
 package http
 
 import (
-	"github.com/gin-gonic/gin"
 	"slicerapi/internal/logger"
+
+	"github.com/gin-gonic/gin"
 )
 
 // chk is an alternative to util.Chk that aborts with a status code.
@@ -13,7 +14,7 @@ func chk(status int, err error, c *gin.Context) {
 			logger.L.Errorln(err)
 		}
 		c.JSON(status, gin.H{
-			"code": status,
+			"code":    status,
 			"message": err.Error(),
 		})
 	}

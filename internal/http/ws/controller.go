@@ -1,14 +1,16 @@
 package ws
 
-type controller struct {
+// Controller controls all websocket connections to the server.
+type Controller struct {
 	clients    map[string]*client
 	broadcast  chan []byte
 	register   chan *client
 	unregister chan *client
 }
 
-func NewController() *controller {
-	return &controller{
+// NewController creates a new controller instance.
+func NewController() *Controller {
+	return &Controller{
 		broadcast:  make(chan []byte),
 		register:   make(chan *client),
 		unregister: make(chan *client),
@@ -16,7 +18,8 @@ func NewController() *controller {
 	}
 }
 
-func (ctrl *controller) Run() {
+// Run starts listening for channel inputs.
+func (ctrl *Controller) Run() {
 	for {
 		select {
 		case client := <-ctrl.register:
