@@ -1,6 +1,0 @@
-http:
-  address: 0.0.0.0:80
-db:
-  address: localhost:6379
-  password: ""
-  id: 0
