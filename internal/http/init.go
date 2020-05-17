@@ -27,14 +27,20 @@ func register(r *gin.Engine) {
 			auth.GET("/refresh", authMiddleware.RefreshHandler)
 		}
 
+		channel := v1.Group("/channel/:channel")
+		channel.Use(authMiddlewareFunc)
+		{
+			channel.POST("/message", handleAddMessage)
+		}
+
 		websocket := v1.Group("/ws")
 		websocket.Use(authMiddlewareFunc)
 		{
-			controller := ws.NewController()
-			go controller.Run()
+			ws.NewController(true)
+			go ws.C.Run()
 
 			websocket.GET("", func(c *gin.Context) {
-				ws.Handle(controller, c)
+				ws.Handle(c)
 			})
 		}
 	}

@@ -21,35 +21,32 @@ const (
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512
 
-	evtAddMessage = "EVT_ADD_MESSAGE"
-	reqAddMessage = "REQ_ADD_MESSAGE"
+	EvtAddMessage = "EVT_ADD_MESSAGE"
 )
 
-var methods = map[string]func(*client, wsMessage){
-	reqAddMessage: handleAddMessage,
-}
+// TODO: Possibly add methods that WS clients are able to use.
+var methods = map[string]func(*Client, Message){}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-// wsMessage is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
-type wsMessage struct {
+// Message is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
+type Message struct {
 	Method string                 `json:"method"`
 	Data   map[string]interface{} `json:"data"`
 }
 
-type client struct {
-	controller *Controller
-	conn       *websocket.Conn
-	send       chan []byte
-	username   string
+type Client struct {
+	conn     *websocket.Conn
+	Send     chan []byte
+	Username string
 }
 
-func (c *client) readPump() {
+func (c *Client) readPump() {
 	defer func() {
-		c.controller.unregister <- c
+		C.unregister <- c
 		util.Chk(c.conn.Close(), true)
 	}()
 
@@ -61,7 +58,7 @@ func (c *client) readPump() {
 	})
 
 	for {
-		message := wsMessage{}
+		message := Message{}
 		err := c.conn.ReadJSON(&message)
 		util.Chk(err, true)
 		if err != nil {
@@ -72,13 +69,13 @@ func (c *client) readPump() {
 		}
 
 		if message.Method == "" {
-			c.send <- []byte("method (string): required")
+			c.Send <- []byte("method (string): required")
 			continue
 		}
 
 		mth, ok := methods[message.Method]
 		if !ok {
-			c.send <- []byte("Invalid method")
+			c.Send <- []byte("invalid method")
 			continue
 		}
 
@@ -86,7 +83,7 @@ func (c *client) readPump() {
 	}
 }
 
-func (c *client) writePump() {
+func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -94,7 +91,7 @@ func (c *client) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
+		case message, ok := <-c.Send:
 			util.Chk(c.conn.SetWriteDeadline(time.Now().Add(writeWait)), true)
 			if !ok {
 				util.Chk(c.conn.WriteMessage(websocket.CloseMessage, []byte{}), true)
@@ -109,9 +106,9 @@ func (c *client) writePump() {
 			_, err = w.Write(message)
 			util.Chk(err, true)
 
-			n := len(c.send)
+			n := len(c.Send)
 			for i := 0; i < n; i++ {
-				_, err = w.Write(<-c.send)
+				_, err = w.Write(<-c.Send)
 				util.Chk(err, true)
 			}
 
@@ -128,7 +125,7 @@ func (c *client) writePump() {
 }
 
 // Handle handles new websocket connections.
-func Handle(controller *Controller, c *gin.Context) {
+func Handle(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	util.Chk(err, true)
 	if err != nil {
@@ -137,8 +134,8 @@ func Handle(controller *Controller, c *gin.Context) {
 
 	claims := jwt.ExtractClaims(c)
 	username := claims["username"].(string)
-	client := &client{controller: controller, conn: conn, send: make(chan []byte, 256), username: username}
-	client.controller.register <- client
+	client := &Client{conn: conn, Send: make(chan []byte, 256), Username: username}
+	C.register <- client
 
 	go client.writePump()
 	go client.readPump()

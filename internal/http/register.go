@@ -1,20 +1,15 @@
 package http
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/gocql/gocql"
 	"net/http"
 	"slicerapi/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type userModel struct {
-	Username  string `json:"username"`
-	Hash      []byte `json:"hash"`
-	PublicKey string `json:"public_key"`
-}
 
 type requestRegister struct {
 	Username  string `form:"username" json:"username"`
@@ -26,14 +21,18 @@ func handleRegister(c *gin.Context) {
 	req := requestRegister{}
 	chk(http.StatusBadRequest, c.ShouldBind(&req), c)
 
-	_, err := db.Redis.Get("user:" + req.Username).Result()
-	if err == nil {
-		chk(http.StatusConflict, errors.New("user already exists"), c)
+	if len(req.Password) < 10 {
+		chk(http.StatusBadRequest, errors.New("password too short; must be at least 10 characters"), c)
 		return
 	}
 
-	if len(req.Password) < 10 {
-		chk(http.StatusBadRequest, errors.New("password too short; must be at least 10 characters"), c)
+	// TODO: Don't actually scan for an ID.
+	var id string
+	if err := db.Cassandra.Query("SELECT id FROM user WHERE username = ? LIMIT 1", req.Username).Scan(&id); err == nil {
+		chk(http.StatusConflict, errors.New("user already exists: "+id), c)
+		return
+	} else if err != gocql.ErrNotFound {
+		chk(http.StatusInternalServerError, err, c)
 		return
 	}
 
@@ -43,17 +42,20 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	user := userModel{
-		Username:  req.Username,
-		Hash:      hash,
-		PublicKey: req.PublicKey,
+	if err := db.Cassandra.Query(
+		"INSERT INTO user (id, date, username, password) VALUES (?, ?, ?, ?)",
+		gocql.TimeUUID(),
+		time.Now(),
+		req.Username,
+		string(hash),
+	).Exec(); err != nil {
+		chk(http.StatusInternalServerError, err, c)
+		return
 	}
-	marshalled, err := json.Marshal(user)
-	go db.Redis.Set("user:"+req.Username, marshalled, 0)
 
 	code := http.StatusCreated
-	c.JSON(code, gin.H{
-		"code":    code,
-		"message": "registered; login required",
+	c.JSON(code, statusMessage{
+		Code:    code,
+		Message: "Registered; login required.",
 	})
 }

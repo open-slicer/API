@@ -2,7 +2,6 @@ package http
 
 import (
 	"crypto/rand"
-	"net/http"
 	"slicerapi/internal/db"
 	"slicerapi/internal/util"
 
@@ -17,6 +16,7 @@ type requestLogin struct {
 }
 
 type user struct {
+	ID       string
 	Username string
 }
 
@@ -28,12 +28,13 @@ func init() {
 	util.Chk(err)
 
 	authMiddleware, err = jwt.New(&jwt.GinJWTMiddleware{
-		Realm:       "keiio",
+		Realm:       "slicer",
 		Key:         key,
 		IdentityKey: "username",
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
+					"id":       v.ID,
 					"username": v.Username,
 				}
 			}
@@ -42,6 +43,7 @@ func init() {
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
 			return &user{
+				ID:       claims["id"].(string),
 				Username: claims["username"].(string),
 			}
 		},
@@ -51,22 +53,22 @@ func init() {
 				return "", jwt.ErrMissingLoginValues
 			}
 
-			password, err := db.Redis.Get("user:" + req.Username).Result()
-			if err == db.Nil {
+			var id string
+			var password string
+			if err := db.Cassandra.Query(
+				"SELECT id, password FROM user WHERE username = ?",
+				req.Username,
+			).Scan(&id, &password); err != nil {
 				return nil, jwt.ErrFailedAuthentication
 			}
-			chk(http.StatusInternalServerError, err, c)
-			if err != nil {
-				return nil, err
-			}
 
-			err = bcrypt.CompareHashAndPassword([]byte(password), []byte(req.Password))
-			if err != nil {
+			if err = bcrypt.CompareHashAndPassword([]byte(password), []byte(req.Password)); err != nil {
 				return nil, jwt.ErrFailedAuthentication
 			}
 
 			return &user{
 				Username: req.Username,
+				ID:       id,
 			}, nil
 		},
 	})
