@@ -25,11 +25,6 @@ func register(r *gin.Engine) {
 			auth.GET("/refresh", authMiddleware.RefreshHandler)
 		}
 
-		messages := v1.Group("/messages")
-		messages.Use(authMiddlewareFunc)
-		{
-		}
-
 		websocket := v1.Group("/ws")
 		websocket.Use(authMiddlewareFunc)
 		{

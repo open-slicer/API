@@ -3,9 +3,14 @@ package main
 import (
 	"slicerapi/internal/db"
 	"slicerapi/internal/http"
+	"slicerapi/internal/logger"
 )
 
 func main() {
-	db.Connect()
+	if err := db.Connect(); err != nil {
+		logger.L.Fatalln(err)
+	}
+	defer db.Cassandra.Close()
+
 	http.Start()
 }

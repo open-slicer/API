@@ -12,9 +12,17 @@ type Configuration struct {
 		Address string `yaml:"address"`
 	} `yaml:"http"`
 	DB struct {
-		Address  string `yaml:"address"`
-		Password string `yaml:"password"`
-		ID       int    `yaml:"id"`
+		Redis struct {
+			Address  string `yaml:"address"`
+			Password string `yaml:"password"`
+			ID       int    `yaml:"id"`
+		} `yaml:"redis"`
+		Cassandra struct {
+			Hosts    []string `yaml:"hosts"`
+			Username string   `yaml:"username"`
+			Password string   `yaml:"password"`
+			Keyspace string   `yaml:"keyspace"`
+		} `yaml:"cassandra"`
 	} `yaml:"db"`
 }
 

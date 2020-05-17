@@ -6,6 +6,7 @@ require (
 	github.com/appleboy/gin-jwt/v2 v2.6.3
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis v6.15.7+incompatible
+	github.com/gocql/gocql v0.0.0-20200515162754-0714040f3e35
 	github.com/gorilla/websocket v1.4.2
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.10.0 // indirect

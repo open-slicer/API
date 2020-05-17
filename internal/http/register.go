@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -8,9 +9,21 @@ import (
 	"slicerapi/internal/db"
 )
 
+type userModel struct {
+	Username  string `json:"username"`
+	Hash      []byte `json:"hash"`
+	PublicKey string `json:"public_key"`
+}
+
+type requestRegister struct {
+	Username  string `form:"username" json:"username"`
+	Password  string `form:"password" json:"password"`
+	PublicKey string `json:"public_key"`
+}
+
 func handleRegister(c *gin.Context) {
-	req := requestLogin{}
-	chk(http.StatusBadRequest, c.ShouldBindJSON(&req), c)
+	req := requestRegister{}
+	chk(http.StatusBadRequest, c.ShouldBind(&req), c)
 
 	_, err := db.Redis.Get("user:" + req.Username).Result()
 	if err == nil {
@@ -29,12 +42,17 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	go db.Redis.Set("user:"+req.Username, hash, 0)
+	user := userModel{
+		Username:  req.Username,
+		Hash:      hash,
+		PublicKey: req.PublicKey,
+	}
+	marshalled, err := json.Marshal(user)
+	go db.Redis.Set("user:"+req.Username, marshalled, 0)
 
 	code := http.StatusCreated
 	c.JSON(code, gin.H{
-		"code":     code,
-		"message":  "registered; login required",
-		"username": req.Username,
+		"code":    code,
+		"message": "registered; login required",
 	})
 }

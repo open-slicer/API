@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"encoding/json"
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 	"slicerapi/internal/util"
@@ -20,12 +19,13 @@ const (
 	pongWait       = 30 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512
+
+	evtAddMessage = "EVT_ADD_MESSAGE"
+	reqAddMessage = "REQ_ADD_MESSAGE"
 )
 
-// TODO: Don't use a map for this.
-var methods = map[string]string{
-	"evtAddMessage": "EVT_ADD_MESSAGE",
-	"reqAddMessage": "REQ_ADD_MESSAGE",
+var methods = map[string]func(*client, wsMessage){
+	reqAddMessage: handleAddMessage,
 }
 
 var upgrader = websocket.Upgrader{
@@ -33,7 +33,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// wsMessage is a general message sent to the server over WS. It's *not* specifically a chat message.
+// wsMessage is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
 type wsMessage struct {
 	Method string                 `json:"method"`
 	Data   map[string]interface{} `json:"data"`
@@ -75,31 +75,13 @@ func (c *client) readPump() {
 			continue
 		}
 
-		switch message.Method {
-		case methods["reqAddMessage"]:
-			recipient, ok := message.Data["recipient"]
-			content, ok := message.Data["content"]
-			if !ok {
-				c.send <- []byte("recipient (string) and content (string): required")
-				continue
-			}
-
-			marshalled, err := json.Marshal(wsMessage{
-				Method: methods["evtAddMessage"],
-				Data: map[string]interface{}{
-					"content": content,
-					"sender":  c.username,
-				},
-			})
-			util.Chk(err, true)
-			if err != nil {
-				c.send <- []byte("Internal server error")
-				continue
-			}
-
-			// TODO: Implement channel broadcasting.
-			c.controller.clients[recipient.(string)].send <- marshalled
+		mth, ok := methods[message.Method]
+		if !ok {
+			c.send <- []byte("Invalid method")
+			continue
 		}
+
+		mth(c, message)
 	}
 }
 
