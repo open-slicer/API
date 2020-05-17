@@ -50,6 +50,9 @@ func handleRegister(c *gin.Context) {
 	}
 	marshalled, err := json.Marshal(user)
 	chk(http.StatusInternalServerError, errors.New("internal server error while marshalling JSON"), c)
+	if err != nil {
+		return
+	}
 	go db.Redis.Set("user:"+req.Username, marshalled, 0)
 
 	code := http.StatusCreated
