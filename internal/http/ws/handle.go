@@ -21,6 +21,7 @@ const (
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512
 
+	// EvtAddMessage is emitted when a message is sent.
 	EvtAddMessage = "EVT_ADD_MESSAGE"
 )
 
@@ -38,6 +39,7 @@ type Message struct {
 	Data   map[string]interface{} `json:"data"`
 }
 
+// Client is a websocket client interfacing with the server.
 type Client struct {
 	conn     *websocket.Conn
 	Send     chan []byte
