@@ -1,5 +1,6 @@
 package http
 
+import "C"
 import (
 	"encoding/json"
 	"errors"
@@ -14,11 +15,6 @@ import (
 type reqAddMessage struct {
 	Data       string   `json:"data"`
 	Recipients []string `json:"recipients"`
-}
-
-type resAddMessage struct {
-	statusMessage
-	Failures []string `json:"failures"`
 }
 
 func handleAddMessage(c *gin.Context) {
@@ -46,27 +42,21 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
-	response := resAddMessage{
-		statusMessage: statusMessage{
-			Message: "Message created.",
-			Code:    http.StatusCreated,
-		},
-	}
-	// TODO: Implement channel broadcasting.
-	for _, v := range body.Recipients {
-		if ws.C.Clients[v] == nil {
-			response.Failures = append(response.Failures, v)
-			continue
-		}
-
-		go func(client string) {
-			ws.C.Clients[client].Send <- marshalled
-		}(v)
+	code := http.StatusNotFound
+	channel, ok := ws.C.Channels[c.Param("channel")]
+	if !ok {
+		c.JSON(code, statusMessage{
+			Message: "Invalid channel ID.",
+			Code:    code,
+		})
+		return
 	}
 
-	if len(response.Failures) == len(body.Recipients) {
-		response.Message = "All users offline; message still created."
-	}
+	channel.Send <- marshalled
 
-	c.JSON(response.Code, response)
+	code = http.StatusCreated
+	c.JSON(code, statusMessage{
+		Message: "Message created.",
+		Code:    code,
+	})
 }

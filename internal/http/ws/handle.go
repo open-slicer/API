@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"slicerapi/internal/util"
 	"time"
 
@@ -21,8 +22,9 @@ const (
 	maxMessageSize = 512
 )
 
-// TODO: Possibly add methods that WS clients are able to use.
-var methods = map[string]func(*Client, Message){}
+var methods = map[string]func(*Client, Message){
+	reqChangeListen: handleChangeListen,
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -67,13 +69,35 @@ func (c *Client) readPump() {
 		}
 
 		if message.Method == "" {
-			c.Send <- []byte("method (string): required")
+			marshalled, err := json.Marshal(Message{
+				Method: errMissingArgument,
+				Data: map[string]interface{}{
+					"arg": "method",
+				},
+			})
+			if err != nil {
+				util.Chk(err, true)
+				c.Send <- []byte(errJSON)
+			}
+
+			c.Send <- marshalled
 			continue
 		}
 
 		mth, ok := methods[message.Method]
 		if !ok {
-			c.Send <- []byte("invalid method")
+			marshalled, err := json.Marshal(Message{
+				Method: errInvalidArgument,
+				Data: map[string]interface{}{
+					"arg": "method",
+				},
+			})
+			if err != nil {
+				util.Chk(err, true)
+				c.Send <- []byte(errJSON)
+			}
+
+			c.Send <- marshalled
 			continue
 		}
 
