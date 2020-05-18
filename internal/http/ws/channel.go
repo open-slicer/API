@@ -4,6 +4,7 @@ import (
 	"slicerapi/internal/db"
 )
 
+// Channel is a realm in which users can perform actions, like sending messages.
 type Channel struct {
 	Clients         map[string]*Client
 	Send            chan []byte
@@ -12,6 +13,7 @@ type Channel struct {
 	register        chan *Client
 }
 
+// NewChannel instantiates a channel.
 func NewChannel(chID string) (*Channel, error) {
 	var users map[string]struct{}
 	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&users); err != nil {
@@ -29,6 +31,7 @@ func NewChannel(chID string) (*Channel, error) {
 	return channel, nil
 }
 
+// Listen listens for channel inputs. This blocks.
 func (ch *Channel) Listen() {
 	for {
 		select {
