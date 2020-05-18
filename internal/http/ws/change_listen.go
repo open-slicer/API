@@ -44,6 +44,8 @@ func handleChangeListen(c *Client, msg Message) {
 			c.Send <- marshalled
 			return
 		}
+
+		go channel.Listen()
 	}
 
 	if _, ok := channel.Clients[strID]; ok {
