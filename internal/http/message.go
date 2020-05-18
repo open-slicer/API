@@ -44,6 +44,7 @@ func handleAddMessage(c *gin.Context) {
 	code := http.StatusNotFound
 	channel, ok := ws.C.Channels[c.Param("channel")]
 	if !ok {
+		// TODO: Instantiate a Channel.
 		c.JSON(code, statusMessage{
 			Message: "Invalid channel ID.",
 			Code:    code,
