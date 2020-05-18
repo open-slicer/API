@@ -10,4 +10,9 @@ const (
 	EvtAddChannel = evtAdd + "CHANNEL"
 	// EvtAddInvite is emitted when a user is invited to a channel.
 	EvtAddInvite = evtAdd + "INVITE"
+
+	/* req = "REQ_"
+	reqChange = req + "CNG_"
+
+	reqChangeListen = reqChange + "LISTEN" */
 )

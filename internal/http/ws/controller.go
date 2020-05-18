@@ -6,6 +6,7 @@ var C *Controller
 // Controller controls all websocket connections to the server.
 type Controller struct {
 	Clients    map[string]*Client
+	Channels   map[string]*Channel
 	Broadcast  chan []byte
 	register   chan *Client
 	unregister chan *Client
@@ -31,11 +32,11 @@ func (ctrl *Controller) Run() {
 	for {
 		select {
 		case client := <-ctrl.register:
-			ctrl.Clients[client.Username] = client
+			ctrl.Clients[client.ID] = client
 		case client := <-ctrl.unregister:
-			if _, ok := ctrl.Clients[client.Username]; ok {
+			if _, ok := ctrl.Clients[client.ID]; ok {
 				close(client.Send)
-				delete(ctrl.Clients, client.Username)
+				delete(ctrl.Clients, client.ID)
 			}
 		case message := <-ctrl.Broadcast:
 			for _, client := range ctrl.Clients {

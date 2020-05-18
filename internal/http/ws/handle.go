@@ -13,7 +13,6 @@ import (
 // TODO: Don't use util.Chk as much.
 // TODO: Add useful errors.
 // TODO: Exit on some errors.
-// TODO: Split up this file into multiple.
 
 const (
 	writeWait      = 10 * time.Second
@@ -38,9 +37,9 @@ type Message struct {
 
 // Client is a websocket client interfacing with the server.
 type Client struct {
-	conn     *websocket.Conn
-	Send     chan []byte
-	Username string
+	conn *websocket.Conn
+	Send chan []byte
+	ID   string
 }
 
 func (c *Client) readPump() {
@@ -132,8 +131,8 @@ func Handle(c *gin.Context) {
 	}
 
 	claims := jwt.ExtractClaims(c)
-	username := claims["id"].(string)
-	client := &Client{conn: conn, Send: make(chan []byte, 256), Username: username}
+	id := claims["id"].(string)
+	client := &Client{conn: conn, Send: make(chan []byte, 256), ID: id}
 	C.register <- client
 
 	go client.writePump()
