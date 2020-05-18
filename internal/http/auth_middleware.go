@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"slicerapi/internal/db"
 	"slicerapi/internal/util"
+	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,7 @@ func init() {
 		Realm:       "slicer",
 		Key:         key,
 		IdentityKey: "username",
+		Timeout: time.Hour * 12,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
