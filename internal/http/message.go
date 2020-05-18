@@ -1,6 +1,5 @@
 package http
 
-import "C"
 import (
 	"encoding/json"
 	"errors"
