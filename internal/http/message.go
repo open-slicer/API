@@ -37,7 +37,7 @@ func handleAddMessage(c *gin.Context) {
 	marshalled, err := json.Marshal(ws.Message{
 		Method: ws.EvtAddMessage,
 		Data: map[string]interface{}{
-			"signed_by": jwt.ExtractClaims(c)["username"],
+			"signed_by": jwt.ExtractClaims(c)["id"],
 			"data":      body.Data,
 		},
 	})
@@ -46,7 +46,12 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
-	response := resAddMessage{}
+	response := resAddMessage{
+		statusMessage: statusMessage{
+			Message: "Message created.",
+			Code:    http.StatusCreated,
+		},
+	}
 	// TODO: Implement channel broadcasting.
 	for _, v := range body.Recipients {
 		if ws.C.Clients[v] == nil {
@@ -59,11 +64,9 @@ func handleAddMessage(c *gin.Context) {
 		}(v)
 	}
 
-	code := http.StatusCreated
 	if len(response.Failures) == len(body.Recipients) {
-		response.Message = "Sending to all recipients failed; message still created"
-		response.Code = code
+		response.Message = "All users offline; message still created."
 	}
 
-	c.JSON(code, response)
+	c.JSON(response.Code, response)
 }

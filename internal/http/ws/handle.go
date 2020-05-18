@@ -20,9 +20,6 @@ const (
 	pongWait       = 30 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512
-
-	// EvtAddMessage is emitted when a message is sent.
-	EvtAddMessage = "EVT_ADD_MESSAGE"
 )
 
 // TODO: Possibly add methods that WS clients are able to use.
@@ -135,7 +132,7 @@ func Handle(c *gin.Context) {
 	}
 
 	claims := jwt.ExtractClaims(c)
-	username := claims["username"].(string)
+	username := claims["id"].(string)
 	client := &Client{conn: conn, Send: make(chan []byte, 256), Username: username}
 	C.register <- client
 

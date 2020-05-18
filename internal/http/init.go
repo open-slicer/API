@@ -27,10 +27,15 @@ func register(r *gin.Engine) {
 			auth.GET("/refresh", authMiddleware.RefreshHandler)
 		}
 
-		channel := v1.Group("/channel/:channel")
+		channel := v1.Group("/channel")
 		channel.Use(authMiddlewareFunc)
 		{
-			channel.POST("/message", handleAddMessage)
+			channel.POST("", handleAddChannel)
+
+			specific := channel.Group("/:channel")
+			{
+				specific.POST("/message", handleAddMessage)
+			}
 		}
 
 		websocket := v1.Group("/ws")

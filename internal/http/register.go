@@ -11,14 +11,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type requestRegister struct {
-	Username  string `form:"username" json:"username"`
-	Password  string `form:"password" json:"password"`
+type reqRegister struct {
+	Username  string `json:"username"`
+	Password  string `json:"password"`
 	PublicKey string `json:"public_key"`
 }
 
 func handleRegister(c *gin.Context) {
-	req := requestRegister{}
+	req := reqRegister{}
 	chk(http.StatusBadRequest, c.ShouldBind(&req), c)
 
 	if len(req.Password) < 10 {
