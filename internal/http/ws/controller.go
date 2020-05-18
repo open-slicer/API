@@ -27,7 +27,7 @@ func NewController(main bool) *Controller {
 	return c
 }
 
-// Run starts listening for channel inputs.
+// Run starts listening for channel inputs. This blocks.
 func (ctrl *Controller) Run() {
 	for {
 		select {
