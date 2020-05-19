@@ -39,9 +39,10 @@ type Message struct {
 
 // Client is a websocket client interfacing with the server.
 type Client struct {
-	conn *websocket.Conn
-	Send chan []byte
-	ID   string
+	conn  *websocket.Conn
+	index int
+	Send  chan []byte
+	ID    string
 }
 
 func (c *Client) readPump() {
@@ -156,7 +157,12 @@ func Handle(c *gin.Context) {
 
 	claims := jwt.ExtractClaims(c)
 	id := claims["id"].(string)
-	client := &Client{conn: conn, Send: make(chan []byte, 256), ID: id}
+
+	index := 0
+	if clientConnections, ok := C.Clients[id]; ok {
+		index = len(clientConnections)
+	}
+	client := &Client{conn: conn, Send: make(chan []byte, 256), ID: id, index: index}
 	C.register <- client
 
 	go client.writePump()

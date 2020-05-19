@@ -6,7 +6,7 @@ import (
 
 // Channel is a realm in which users can perform actions, like sending messages.
 type Channel struct {
-	Clients         map[string]*Client
+	Clients         map[string][]*Client
 	Send            chan []byte
 	possibleClients map[string]bool
 	unregister      chan *Client
@@ -27,7 +27,7 @@ func NewChannel(chID string) (*Channel, error) {
 	}
 
 	channel := &Channel{
-		Clients:         make(map[string]*Client),
+		Clients:         make(map[string][]*Client),
 		Send:            make(chan []byte),
 		possibleClients: users,
 		register:        make(chan *Client),
@@ -44,17 +44,26 @@ func (ch *Channel) Listen() {
 		select {
 		case client := <-ch.register:
 			if _, ok := ch.possibleClients[client.ID]; ok {
-				ch.Clients[client.ID] = client
+				ch.Clients[client.ID] = append(ch.Clients[client.ID], client)
 			}
 		case client := <-ch.unregister:
-			close(ch.Clients[client.ID].Send)
-			delete(ch.Clients, client.ID)
+			if c, ok := ch.Clients[client.ID]; ok {
+				length := len(c)
+				c[length-1], c[client.index] = c[client.index], c[length-1]
+				c = c[:length-1]
+
+				if len(c) <= 0 {
+					delete(ch.Clients, client.ID)
+				}
+			}
 		case message := <-ch.Send:
-			for _, client := range ch.Clients {
-				select {
-				case client.Send <- message:
-				default:
-					ch.unregister <- client
+			for _, user := range ch.Clients {
+				for _, client := range user {
+					select {
+					case client.Send <- message:
+					default:
+						ch.unregister <- client
+					}
 				}
 			}
 		}

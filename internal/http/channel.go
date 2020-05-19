@@ -82,7 +82,7 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	var createMarshalled []byte
-	if createdClient := ws.C.Clients[createdBy]; createdClient != nil {
+	if createdUser := ws.C.Clients[createdBy]; createdUser != nil {
 		var err error
 		createMarshalled, err = json.Marshal(ws.Message{
 			Method: ws.EvtAddChannel,
@@ -94,7 +94,9 @@ func handleAddChannel(c *gin.Context) {
 			return
 		}
 
-		createdClient.Send <- createMarshalled
+		for _, createdClient := range createdUser {
+			createdClient.Send <- createMarshalled
+		}
 	} else {
 		response.Failures = append(response.Failures, createdBy)
 	}
@@ -105,8 +107,10 @@ func handleAddChannel(c *gin.Context) {
 			continue
 		}
 
-		go func(client string) {
-			ws.C.Clients[client].Send <- marshalled
+		go func(user string) {
+			for _, client := range ws.C.Clients[user] {
+				client.Send <- marshalled
+			}
 		}(v)
 	}
 
