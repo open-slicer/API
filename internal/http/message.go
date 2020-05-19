@@ -13,8 +13,7 @@ import (
 // TODO: Actually store messages in the Cassandra cluster.
 
 type reqAddMessage struct {
-	Data       string   `json:"data"`
-	Recipients []string `json:"recipients"`
+	Data string `json:"data"`
 }
 
 func handleAddMessage(c *gin.Context) {
