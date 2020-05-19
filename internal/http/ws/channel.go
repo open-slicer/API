@@ -28,6 +28,7 @@ func NewChannel(chID string) (*Channel, error) {
 
 	channel := &Channel{
 		Clients:         make(map[string]*Client),
+		Send:            make(chan []byte),
 		possibleClients: users,
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
