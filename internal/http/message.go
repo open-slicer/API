@@ -47,7 +47,6 @@ func handleAddMessage(c *gin.Context) {
 	channel, ok := ws.C.Channels[chID]
 	if !ok {
 		channel, err = ws.NewChannel(chID)
-		ws.C.Channels[chID] = channel
 
 		if err != nil {
 			util.Chk(err, true)
@@ -57,6 +56,8 @@ func handleAddMessage(c *gin.Context) {
 			})
 			return
 		}
+
+		go channel.Listen()
 	}
 
 	channel.Send <- marshalled

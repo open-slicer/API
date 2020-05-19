@@ -28,7 +28,6 @@ func handleChangeListen(c *Client, msg Message) {
 	if !ok {
 		var err error
 		channel, err = NewChannel(strID)
-		C.Channels[strID] = channel
 
 		if err != nil {
 			marshalled, err := json.Marshal(Message{
