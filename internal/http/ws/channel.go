@@ -8,16 +8,22 @@ import (
 type Channel struct {
 	Clients         map[string]*Client
 	Send            chan []byte
-	possibleClients map[string]struct{}
+	possibleClients map[string]bool
 	unregister      chan *Client
 	register        chan *Client
 }
 
 // NewChannel instantiates a channel.
 func NewChannel(chID string) (*Channel, error) {
-	var users map[string]struct{}
-	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&users); err != nil {
+	var usersSlice []string
+	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&usersSlice); err != nil {
 		return nil, err
+	}
+
+	// TODO: This is inefficient. Do something else.
+	var users map[string]bool
+	for _, v := range usersSlice {
+		users[v] = true
 	}
 
 	channel := &Channel{

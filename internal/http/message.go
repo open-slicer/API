@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"slicerapi/internal/http/ws"
+	"slicerapi/internal/util"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,7 @@ func handleAddMessage(c *gin.Context) {
 		ws.C.Channels[chID] = channel
 
 		if err != nil {
+			util.Chk(err, true)
 			c.JSON(code, statusMessage{
 				Message: "Invalid channel ID.",
 				Code:    code,
