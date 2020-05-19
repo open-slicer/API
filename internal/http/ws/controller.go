@@ -19,6 +19,7 @@ func NewController(main bool) *Controller {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		Clients:    make(map[string]*Client),
+		Channels:   make(map[string]*Channel),
 	}
 
 	if main {
