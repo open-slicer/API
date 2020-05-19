@@ -21,7 +21,7 @@ func NewChannel(chID string) (*Channel, error) {
 	}
 
 	// TODO: This is inefficient. Do something else.
-	var users map[string]bool
+	users := map[string]bool{}
 	for _, v := range usersSlice {
 		users[v] = true
 	}
