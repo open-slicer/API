@@ -3,10 +3,11 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"slicerapi/internal/http/ws"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+	"github.com/gin-gonic/gin"
 )
 
 // TODO: Actually store messages in the Cassandra cluster.
@@ -42,14 +43,19 @@ func handleAddMessage(c *gin.Context) {
 	}
 
 	code := http.StatusNotFound
-	channel, ok := ws.C.Channels[c.Param("channel")]
+	chID := c.Param("channel")
+	channel, ok := ws.C.Channels[chID]
 	if !ok {
-		// TODO: Instantiate a Channel.
-		c.JSON(code, statusMessage{
-			Message: "Invalid channel ID.",
-			Code:    code,
-		})
-		return
+		channel, err = ws.NewChannel(chID)
+		ws.C.Channels[chID] = channel
+
+		if err != nil {
+			c.JSON(code, statusMessage{
+				Message: "Invalid channel ID.",
+				Code:    code,
+			})
+			return
+		}
 	}
 
 	channel.Send <- marshalled
