@@ -40,21 +40,34 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
-	signedID := jwt.ExtractClaims(c)["id"]
-	marshalled, err := json.Marshal(ws.Message{
-		Method: ws.EvtAddMessage,
-		Data: map[string]interface{}{
-			"signed_by": signedID,
-			"data":      body.Data,
-		},
-	})
-	chk(http.StatusInternalServerError, err, c)
-	if err != nil {
+	code := http.StatusNotFound
+	chID := c.Param("channel")
+
+	var usersSlice []string
+	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&usersSlice); err != nil {
+		if err == gocql.ErrNotFound {
+			chk(code, err, c)
+			return
+		}
+
+		chk(http.StatusInternalServerError, err, c)
 		return
 	}
 
-	code := http.StatusNotFound
-	chID := c.Param("channel")
+	// TODO: Again, this really, really needs improving. It's simply for testing.
+	signedID := jwt.ExtractClaims(c)["id"].(string)
+	authorized := false
+	for _, v := range usersSlice {
+		if v == signedID {
+			authorized = true
+			break
+		}
+	}
+	if !authorized {
+		chk(http.StatusForbidden, errors.New("can't send messages in this channel; not in users set"), c)
+		return
+	}
+
 	channel, ok := ws.C.Channels[chID]
 	if !ok {
 		channel, err = ws.NewChannel(chID)
@@ -71,15 +84,26 @@ func handleAddMessage(c *gin.Context) {
 		go channel.Listen()
 	}
 
+	marshalled, err := json.Marshal(ws.Message{
+		Method: ws.EvtAddMessage,
+		Data: map[string]interface{}{
+			"signed_by": signedID,
+			"data":      body.Data,
+		},
+	})
+	chk(http.StatusInternalServerError, err, c)
+	if err != nil {
+		return
+	}
+
 	id := gocql.TimeUUID()
 	go func() {
-		parsedSignedUUID, _ := gocql.ParseUUID(signedID.(string))
 		go db.Cassandra.Query(
 			"INSERT INTO message (id, data, date, signed_by) VALUES (?, ?, ?, ?)",
 			id,
 			body.Data,
 			time.Now(),
-			parsedSignedUUID,
+			signedID,
 		).Exec()
 
 		channel.Send <- marshalled
