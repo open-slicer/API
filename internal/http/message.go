@@ -3,18 +3,28 @@ package http
 import (
 	"encoding/json"
 	"errors"
+	"github.com/gocql/gocql"
 	"net/http"
+	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
+	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 )
 
-// TODO: Actually store messages in the Cassandra cluster.
-
 type reqAddMessage struct {
 	Data string `json:"data"`
+}
+
+type messageData struct {
+	ID string `json:"id"`
+}
+
+type resAddMessage struct {
+	statusMessage
+	Data messageData `json:"data"`
 }
 
 func handleAddMessage(c *gin.Context) {
@@ -30,10 +40,11 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
+	signedID := jwt.ExtractClaims(c)["id"]
 	marshalled, err := json.Marshal(ws.Message{
 		Method: ws.EvtAddMessage,
 		Data: map[string]interface{}{
-			"signed_by": jwt.ExtractClaims(c)["id"],
+			"signed_by": signedID,
 			"data":      body.Data,
 		},
 	})
@@ -60,11 +71,26 @@ func handleAddMessage(c *gin.Context) {
 		go channel.Listen()
 	}
 
-	channel.Send <- marshalled
+	id := gocql.TimeUUID()
+	go func() {
+		parsedSignedUUID, _ := gocql.ParseUUID(signedID.(string))
+		go db.Cassandra.Query(
+			"INSERT INTO message (id, data, date, signed_by) VALUES (?, ?, ?, ?)",
+			id,
+			body.Data,
+			time.Now(),
+			parsedSignedUUID,
+		).Exec()
+
+		channel.Send <- marshalled
+	}()
 
 	code = http.StatusCreated
-	c.JSON(code, statusMessage{
-		Message: "Message created.",
-		Code:    code,
+	c.JSON(code, resAddMessage{
+		statusMessage: statusMessage{
+			Message: "Message created.",
+			Code:    code,
+		},
+		Data: messageData{ID: id.String()},
 	})
 }
