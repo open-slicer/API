@@ -27,6 +27,11 @@ type resAddChannel struct {
 	Failures []string    `json:"failures"`
 }
 
+type resGetChannel struct {
+	statusMessage
+	Data string `json:"data"`
+}
+
 func handleAddChannel(c *gin.Context) {
 	body := reqAddChannel{}
 	err := c.ShouldBindJSON(&body)
@@ -115,4 +120,50 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	c.JSON(response.Code, response)
+}
+
+func handleGetChannel(c *gin.Context) {
+	channel := map[string]interface{}{}
+	if err := db.Cassandra.Query(
+		"SELECT * FROM channel WHERE id = ? LIMIT 1",
+		c.Param("channel"),
+	).MapScan(channel); err != nil {
+		if err == gocql.ErrNotFound {
+			chk(http.StatusNotFound, err, c)
+			return
+		}
+
+		chk(http.StatusInternalServerError, err, c)
+		return
+	}
+
+	var publicKey string
+	if err := db.Cassandra.Query(
+		"SELECT public_key FROM user WHERE id = ? LIMIT 1",
+		jwt.ExtractClaims(c)["id"],
+	).Scan(&publicKey); err != nil {
+		if err == gocql.ErrNotFound {
+			chk(http.StatusUnauthorized, err, c)
+			return
+		}
+
+		chk(http.StatusInternalServerError, err, c)
+		return
+	}
+
+	// TODO: Possibly encrypt with PGP.
+	marshalled, err := json.Marshal(channel)
+	chk(http.StatusInternalServerError, err, c)
+	if err != nil {
+		return
+	}
+
+	code := http.StatusOK
+	c.JSON(http.StatusOK, resGetChannel{
+		statusMessage: statusMessage{
+			Code:    code,
+			Message: "Channel fetched.",
+		},
+		Data: string(marshalled),
+	})
 }

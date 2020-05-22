@@ -34,6 +34,7 @@ func register(r *gin.Engine) {
 
 			specific := channel.Group("/:channel")
 			{
+				specific.GET("", handleGetChannel)
 				specific.POST("/message", handleAddMessage)
 			}
 		}

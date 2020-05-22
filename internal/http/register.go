@@ -18,8 +18,13 @@ type reqRegister struct {
 }
 
 func handleRegister(c *gin.Context) {
+	// TODO: nil checks.
 	req := reqRegister{}
-	chk(http.StatusBadRequest, c.ShouldBind(&req), c)
+	err := c.ShouldBind(&req)
+	chk(http.StatusBadRequest, err, c)
+	if err != nil {
+		return
+	}
 
 	if len(req.Password) < 10 {
 		chk(http.StatusBadRequest, errors.New("password too short; must be at least 10 characters"), c)
@@ -43,11 +48,12 @@ func handleRegister(c *gin.Context) {
 	}
 
 	if err := db.Cassandra.Query(
-		"INSERT INTO user (id, date, username, password) VALUES (?, ?, ?, ?)",
+		"INSERT INTO user (id, date, username, password, public_key) VALUES (?, ?, ?, ?, ?)",
 		gocql.TimeUUID(),
 		time.Now(),
 		req.Username,
 		string(hash),
+		req.PublicKey,
 	).Exec(); err != nil {
 		chk(http.StatusInternalServerError, err, c)
 		return
