@@ -22,8 +22,9 @@ type User struct {
 }
 
 type Message struct {
-	ID       string    `bson:"_id"`
-	Date     time.Time `bson:"date"`
-	Data     string    `bson:"data"`
-	SignedBy string    `bson:"signed_by"`
+	ID        string    `bson:"_id"`
+	ChannelID string    `bson:"channel_id"`
+	Date      time.Time `bson:"date"`
+	Data      string    `bson:"data"`
+	SignedBy  string    `bson:"signed_by"`
 }

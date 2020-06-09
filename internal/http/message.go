@@ -97,10 +97,11 @@ func handleAddMessage(c *gin.Context) {
 	}
 
 	newMsg := db.Message{
-		ID:       uuid.New().String(),
-		Date:     time.Now(),
-		Data:     body.Data,
-		SignedBy: signedID,
+		ID:        uuid.New().String(),
+		Date:      time.Now(),
+		Data:      body.Data,
+		SignedBy:  signedID,
+		ChannelID: chID,
 	}
 	go func() {
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
