@@ -102,7 +102,7 @@ func handleGetUser(c *gin.Context) {
 		return
 	}
 
-	// TODO: Make some sort of filter. The response body still contains data.Password; it's simply empty.
+	// TODO: Make some sort of filter.
 	user.Password = ""
 
 	code := http.StatusOK
