@@ -110,16 +110,17 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	for i := range body.Users {
-		if _, ok := ws.C.Clients[i]; !ok {
+		client, ok := ws.C.Clients[i]
+		if !ok {
 			response.Failures = append(response.Failures, i)
 			continue
 		}
 
-		go func(user string) {
-			for _, client := range ws.C.Clients[user] {
+		go func() {
+			for _, client := range client {
 				client.Send <- marshalled
 			}
-		}(i)
+		}()
 	}
 
 	c.JSON(response.Code, response)
