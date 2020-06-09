@@ -1,35 +1,35 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"time"
 )
 
 type reqAddChannel struct {
-	Name   string   `json:"name"`
-	Users  []string `json:"users"`
-	Parent string   `json:"parent"`
-}
-
-type channelData struct {
-	ID string `json:"id"`
+	Name   string          `json:"name"`
+	Users  map[string]bool `json:"users"`
+	Parent string          `json:"parent"`
 }
 
 type resAddChannel struct {
 	statusMessage
-	Data     channelData `json:"data"`
-	Failures []string    `json:"failures"`
+	Data     db.Channel `json:"data"`
+	Failures []string   `json:"failures"`
 }
 
 type resGetChannel struct {
 	statusMessage
-	Data string `json:"data"`
+	Data db.Channel `json:"data"`
 }
 
 func handleAddChannel(c *gin.Context) {
@@ -48,24 +48,29 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	createdBy := jwt.ExtractClaims(c)["id"].(string)
-	id := gocql.TimeUUID()
-	if err := db.Cassandra.Query(
-		"INSERT INTO channel (id, name, date, pending, users, parent) VALUES (?, ?, ?, ?, ?, ?)",
-		id,
-		body.Name,
-		time.Now(),
-		body.Users,
-		[]string{createdBy},
-		body.Parent,
-	).Exec(); err != nil {
+	id := uuid.New().String()
+
+	channelDoc := db.Channel{
+		ID:      id,
+		Name:    body.Name,
+		Date:    time.Now(),
+		Pending: body.Users,
+		Users:   map[string]bool{createdBy: true},
+		Parent:  body.Parent,
+	}
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if _, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").InsertOne(
+		ctx,
+		channelDoc,
+	); err != nil {
 		chk(http.StatusInternalServerError, err, c)
 		return
 	}
 
-	idString := id.String()
 	data := map[string]interface{}{
 		"created_by": createdBy,
-		"id":         idString,
+		"id":         id,
 	}
 	marshalled, err := json.Marshal(ws.Message{
 		Method: ws.EvtAddInvite,
@@ -81,9 +86,7 @@ func handleAddChannel(c *gin.Context) {
 			Message: "Channel created.",
 			Code:    http.StatusCreated,
 		},
-		Data: channelData{
-			ID: idString,
-		},
+		Data: channelDoc,
 	}
 
 	var createMarshalled []byte
@@ -106,9 +109,9 @@ func handleAddChannel(c *gin.Context) {
 		response.Failures = append(response.Failures, createdBy)
 	}
 
-	for _, v := range body.Users {
-		if ws.C.Clients[v] == nil {
-			response.Failures = append(response.Failures, v)
+	for i := range body.Users {
+		if ws.C.Clients[i] == nil {
+			response.Failures = append(response.Failures, i)
 			continue
 		}
 
@@ -116,19 +119,23 @@ func handleAddChannel(c *gin.Context) {
 			for _, client := range ws.C.Clients[user] {
 				client.Send <- marshalled
 			}
-		}(v)
+		}(i)
 	}
 
 	c.JSON(response.Code, response)
 }
 
 func handleGetChannel(c *gin.Context) {
-	channel := map[string]interface{}{}
-	if err := db.Cassandra.Query(
-		"SELECT * FROM channel WHERE id = ? LIMIT 1",
-		c.Param("channel"),
-	).MapScan(channel); err != nil {
-		if err == gocql.ErrNotFound {
+	var channel db.Channel
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
+		ctx,
+		bson.M{
+			"_id": c.Param("channel"),
+		},
+	).Decode(&channel); err != nil {
+		if err == mongo.ErrNoDocuments {
 			chk(http.StatusNotFound, err, c)
 			return
 		}
@@ -137,33 +144,12 @@ func handleGetChannel(c *gin.Context) {
 		return
 	}
 
-	var publicKey string
-	if err := db.Cassandra.Query(
-		"SELECT public_key FROM user WHERE id = ? LIMIT 1",
-		jwt.ExtractClaims(c)["id"],
-	).Scan(&publicKey); err != nil {
-		if err == gocql.ErrNotFound {
-			chk(http.StatusUnauthorized, err, c)
-			return
-		}
-
-		chk(http.StatusInternalServerError, err, c)
-		return
-	}
-
-	// TODO: Possibly encrypt with PGP.
-	marshalled, err := json.Marshal(channel)
-	chk(http.StatusInternalServerError, err, c)
-	if err != nil {
-		return
-	}
-
 	code := http.StatusOK
-	c.JSON(http.StatusOK, resGetChannel{
+	c.JSON(code, resGetChannel{
 		statusMessage: statusMessage{
 			Code:    code,
 			Message: "Channel fetched.",
 		},
-		Data: string(marshalled),
+		Data: channel,
 	})
 }

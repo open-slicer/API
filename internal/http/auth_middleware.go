@@ -1,7 +1,11 @@
 package http
 
 import (
+	"context"
 	"crypto/rand"
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/util"
 	"time"
@@ -55,22 +59,23 @@ func init() {
 				return "", jwt.ErrMissingLoginValues
 			}
 
-			var id string
-			var password string
-			if err := db.Cassandra.Query(
-				"SELECT id, password FROM user WHERE username = ?",
-				req.Username,
-			).Scan(&id, &password); err != nil {
+			var userDoc db.User
+
+			ctx, _ := context.WithTimeout(context.Background(), time.Second * 2)
+			if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(ctx, bson.M{
+				"username": req.Username,
+			}).Decode(&userDoc); err != nil {
+				fmt.Println(err)
 				return nil, jwt.ErrFailedAuthentication
 			}
 
-			if err = bcrypt.CompareHashAndPassword([]byte(password), []byte(req.Password)); err != nil {
+			if err = bcrypt.CompareHashAndPassword([]byte(userDoc.Password), []byte(req.Password)); err != nil {
 				return nil, jwt.ErrFailedAuthentication
 			}
 
 			return &user{
 				Username: req.Username,
-				ID:       id,
+				ID:       userDoc.ID,
 			}, nil
 		},
 	})

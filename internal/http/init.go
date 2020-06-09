@@ -12,7 +12,7 @@ import (
 func Start() {
 	r := gin.New()
 	register(r)
-	util.Chk(r.Run(config.Config.HTTP.Address))
+	util.Chk(r.Run(config.C.HTTP.Address))
 }
 
 // register registers all routes and middleware.

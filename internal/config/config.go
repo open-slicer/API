@@ -12,21 +12,20 @@ type Tmpl struct {
 	HTTP struct {
 		Address string `yaml:"address"`
 	} `yaml:"http"`
-	DB struct {
-		MongoDB struct {
-			URI string `yaml:"uri"`
-		} `yaml:"mongodb"`
-	} `yaml:"db"`
+	MongoDB struct {
+		URI  string `yaml:"uri"`
+		Name string `yaml:"name"`
+	} `yaml:"mongodb"`
 }
 
-// Config is the Tmpl instance of _config.yml.
-var Config Tmpl
+// C is the Tmpl instance of _config.yml.
+var C Tmpl
 
-// init reads _config.yml into Config.
+// init reads _config.yml into C.
 func init() {
-	Config = Tmpl{}
+	C = Tmpl{}
 	bytes, err := ioutil.ReadFile("_config.yml")
 	util.Chk(err)
 
-	util.Chk(yaml.Unmarshal(bytes, &Config))
+	util.Chk(yaml.Unmarshal(bytes, &C))
 }

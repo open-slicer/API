@@ -6,6 +6,7 @@ require (
 	github.com/appleboy/gin-jwt/v2 v2.6.3
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gocql/gocql v0.0.0-20200608162118-cb62e193e52b
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/sirupsen/logrus v1.6.0
 	go.mongodb.org/mongo-driver v1.3.4

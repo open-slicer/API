@@ -1,9 +1,13 @@
 package http
 
 import (
+	"context"
 	"errors"
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"time"
 
@@ -31,12 +35,17 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	// TODO: Don't actually scan for an ID.
-	var id string
-	if err := db.Cassandra.Query("SELECT id FROM user WHERE username = ? LIMIT 1", req.Username).Scan(&id); err == nil {
-		chk(http.StatusConflict, errors.New("user already exists: "+id), c)
+	var user db.User
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
+		ctx,
+		bson.M{
+			"username": req.Username,
+		},
+	).Decode(&user); err == nil {
+		chk(http.StatusConflict, errors.New("user already exists: "+user.ID), c)
 		return
-	} else if err != gocql.ErrNotFound {
+	} else if err != mongo.ErrNoDocuments {
 		chk(http.StatusInternalServerError, err, c)
 		return
 	}
@@ -47,14 +56,17 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	if err := db.Cassandra.Query(
-		"INSERT INTO user (id, date, username, password, public_key) VALUES (?, ?, ?, ?, ?)",
-		gocql.TimeUUID(),
-		time.Now(),
-		req.Username,
-		string(hash),
-		req.PublicKey,
-	).Exec(); err != nil {
+	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
+	if _, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").InsertOne(
+		ctx,
+		db.User{
+			ID:        uuid.New().String(),
+			Date:      time.Now(),
+			Username:  req.Username,
+			Password:  string(hash),
+			PublicKey: req.PublicKey,
+		},
+	); err != nil {
 		chk(http.StatusInternalServerError, err, c)
 		return
 	}

@@ -1,26 +1,31 @@
-// ! This doesn't actually work. It's simply here to show how it'd be done. See README.md.
-
 package http
 
 import (
+	"context"
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/gocql/gocql"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
+	"time"
 )
 
 func handleInviteJoin(c *gin.Context) {
 	userID := jwt.ExtractClaims(c)["id"].(string)
 	chID := c.Param("id")
 
-	var pending []string
-	var users []string
-	if err := db.Cassandra.Query(
-		"SELECT pending, users FROM channel WHERE id = ? LIMIT 1",
-		chID,
-	).Scan(&pending, &users); err != nil {
-		if err == gocql.ErrNotFound {
+	var channel db.Channel
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
+		ctx,
+		bson.M{
+			"_id": chID,
+		},
+	).Decode(&channel); err != nil {
+		if err == mongo.ErrNoDocuments {
 			chk(http.StatusUnauthorized, err, c)
 			return
 		}
@@ -28,25 +33,31 @@ func handleInviteJoin(c *gin.Context) {
 		return
 	}
 
-	// TODO: Improve this. (for the 50th time)
-	authorized := false
-	for i, v := range pending {
-		if v == userID {
-			authorized = true
-
-			length := len(pending)
-			pending[length-1], pending[i] = pending[i], pending[length-1]
-			pending = pending[:length-1]
-			break
-		}
-	}
-
 	stat := http.StatusOK
-	if authorized {
-		users = append(users, userID)
-		err := db.Cassandra.Query("UPDATE channel SET pending = ?, users = ? WHERE id = ?", pending, users, chID).Exec()
-		chk(500, err, c)
-		if err != nil {
+
+	_, ok := channel.Pending[userID]
+	if ok {
+		delete(channel.Pending, userID)
+
+		channel.Users[userID] = true
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+		if _, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").UpdateOne(
+			ctx,
+			bson.M{
+				"_id": channel.ID,
+			},
+			bson.D{{
+				"$set",
+				bson.D{{
+					"pending",
+					channel.Pending,
+				}, {
+					"users",
+					channel.Users,
+				}},
+			}},
+		); err != nil {
+			chk(500, err, c)
 			return
 		}
 
@@ -54,7 +65,9 @@ func handleInviteJoin(c *gin.Context) {
 			Code:    stat,
 			Message: "Invite accepted.",
 		})
+		return
 	}
+
 	stat = http.StatusForbidden
 	c.JSON(stat, statusMessage{
 		Code:    stat,

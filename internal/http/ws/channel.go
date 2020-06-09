@@ -1,7 +1,11 @@
 package ws
 
 import (
+	"context"
+	"go.mongodb.org/mongo-driver/bson"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
+	"time"
 )
 
 // Channel is a realm in which users can perform actions, like sending messages.
@@ -15,21 +19,19 @@ type Channel struct {
 
 // NewChannel instantiates a channel.
 func NewChannel(chID string) (*Channel, error) {
-	var usersSlice []string
-	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&usersSlice); err != nil {
-		return nil, err
-	}
+	var chDoc db.Channel
 
-	// TODO: This is inefficient. Do something else.
-	users := map[string]bool{}
-	for _, v := range usersSlice {
-		users[v] = true
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(ctx, bson.M{
+		"_id": chID,
+	}).Decode(&chDoc); err != nil {
+		return nil, err
 	}
 
 	channel := &Channel{
 		Clients:         make(map[string][]*Client),
 		Send:            make(chan []byte),
-		possibleClients: users,
+		possibleClients: chDoc.Users,
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
 	}

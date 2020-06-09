@@ -1,10 +1,14 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
@@ -18,13 +22,9 @@ type reqAddMessage struct {
 	Data string `json:"data"`
 }
 
-type messageData struct {
-	ID string `json:"id"`
-}
-
 type resAddMessage struct {
 	statusMessage
-	Data messageData `json:"data"`
+	Data db.Message `json:"data"`
 }
 
 func handleAddMessage(c *gin.Context) {
@@ -43,9 +43,16 @@ func handleAddMessage(c *gin.Context) {
 	code := http.StatusNotFound
 	chID := c.Param("channel")
 
-	var usersSlice []string
-	if err := db.Cassandra.Query("SELECT users FROM channel WHERE id = ? LIMIT 1", chID).Scan(&usersSlice); err != nil {
-		if err == gocql.ErrNotFound {
+	var chDoc db.Channel
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
+		ctx,
+		bson.M{
+			"_id": chID,
+		},
+	).Decode(&chDoc); err != nil {
+		if err == mongo.ErrNoDocuments {
 			chk(code, err, c)
 			return
 		}
@@ -54,16 +61,9 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
-	// TODO: Again, this really, really needs improving. It's simply for testing.
 	signedID := jwt.ExtractClaims(c)["id"].(string)
-	authorized := false
-	for _, v := range usersSlice {
-		if v == signedID {
-			authorized = true
-			break
-		}
-	}
-	if !authorized {
+	_, ok := chDoc.Users[signedID]
+	if !ok {
 		chk(http.StatusForbidden, errors.New("can't send messages in this channel; not in users set"), c)
 		return
 	}
@@ -96,15 +96,18 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
-	id := gocql.TimeUUID()
+	newMsg := db.Message{
+		ID:       uuid.New().String(),
+		Date:     time.Now(),
+		Data:     body.Data,
+		SignedBy: signedID,
+	}
 	go func() {
-		go db.Cassandra.Query(
-			"INSERT INTO message (id, data, date, signed_by) VALUES (?, ?, ?, ?)",
-			id,
-			body.Data,
-			time.Now(),
-			signedID,
-		).Exec()
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+		go db.Mongo.Database(config.C.MongoDB.Name).Collection("messages").InsertOne(
+			ctx,
+			newMsg,
+		)
 
 		channel.Send <- marshalled
 	}()
@@ -115,6 +118,6 @@ func handleAddMessage(c *gin.Context) {
 			Message: "Message created.",
 			Code:    code,
 		},
-		Data: messageData{ID: id.String()},
+		Data: newMsg,
 	})
 }
