@@ -68,18 +68,36 @@ func handleAddChannel(c *gin.Context) {
 		return
 	}
 
-	data := map[string]interface{}{
-		"created_by": createdBy,
-		"id":         id,
-	}
-	marshalled, err := json.Marshal(ws.Message{
-		Method: ws.EvtAddInvite,
-		Data:   data,
-	})
-	chk(http.StatusInternalServerError, err, c)
-	if err != nil {
-		return
-	}
+	go func() {
+		if createdUser, ok := ws.C.Clients[createdBy]; ok {
+			createMarshalled, _ := json.Marshal(ws.Message{
+				Method: ws.EvtAddChannel,
+				Data:   channelDoc,
+			})
+
+			for _, createdClient := range createdUser {
+				createdClient.Send <- createMarshalled
+			}
+		}
+
+		marshalled, _ := json.Marshal(ws.Message{
+			Method: ws.EvtAddInvite,
+			Data:   channelDoc,
+		})
+
+		for i := range body.Users {
+			client, ok := ws.C.Clients[i]
+			if !ok {
+				continue
+			}
+
+			go func() {
+				for _, conn := range client {
+					conn.Send <- marshalled
+				}
+			}()
+		}
+	}()
 
 	response := resAddChannel{
 		statusMessage: statusMessage{
@@ -87,40 +105,6 @@ func handleAddChannel(c *gin.Context) {
 			Code:    http.StatusCreated,
 		},
 		Data: channelDoc,
-	}
-
-	var createMarshalled []byte
-	if createdUser := ws.C.Clients[createdBy]; createdUser != nil {
-		var err error
-		createMarshalled, err = json.Marshal(ws.Message{
-			Method: ws.EvtAddChannel,
-			Data:   data,
-		})
-
-		chk(http.StatusInternalServerError, err, c)
-		if err != nil {
-			return
-		}
-
-		for _, createdClient := range createdUser {
-			createdClient.Send <- createMarshalled
-		}
-	} else {
-		response.Failures = append(response.Failures, createdBy)
-	}
-
-	for i := range body.Users {
-		client, ok := ws.C.Clients[i]
-		if !ok {
-			response.Failures = append(response.Failures, i)
-			continue
-		}
-
-		go func() {
-			for _, client := range client {
-				client.Send <- marshalled
-			}
-		}()
 	}
 
 	c.JSON(response.Code, response)

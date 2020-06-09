@@ -6,7 +6,7 @@ import (
 )
 
 func handleChangeListen(c *Client, msg Message) {
-	chID, ok := msg.Data["channel_id"]
+	chID, ok := msg.Data.(map[string]string)["channel_id"]
 	if !ok {
 		marshalled, err := json.Marshal(Message{
 			Method: errMissingArgument,
@@ -23,11 +23,10 @@ func handleChangeListen(c *Client, msg Message) {
 		return
 	}
 
-	strID := chID.(string)
-	channel, ok := C.Channels[strID]
+	channel, ok := C.Channels[chID]
 	if !ok {
 		var err error
-		channel, err = NewChannel(strID)
+		channel, err = NewChannel(chID)
 
 		if err != nil {
 			marshalled, err := json.Marshal(Message{
@@ -48,7 +47,7 @@ func handleChangeListen(c *Client, msg Message) {
 		go channel.Listen()
 	}
 
-	if _, ok := channel.Clients[strID]; ok {
+	if _, ok := channel.Clients[chID]; ok {
 		channel.unregister <- c
 	} else {
 		channel.register <- c

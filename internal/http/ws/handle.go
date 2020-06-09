@@ -33,8 +33,8 @@ var upgrader = websocket.Upgrader{
 
 // Message is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
 type Message struct {
-	Method string                 `json:"method"`
-	Data   map[string]interface{} `json:"data"`
+	Method string      `json:"method"`
+	Data   interface{} `json:"data"`
 }
 
 // Client is a websocket client interfacing with the server.

@@ -91,18 +91,6 @@ func handleAddMessage(c *gin.Context) {
 		go channel.Listen()
 	}
 
-	marshalled, err := json.Marshal(ws.Message{
-		Method: ws.EvtAddMessage,
-		Data: map[string]interface{}{
-			"signed_by": signedID,
-			"data":      body.Data,
-		},
-	})
-	chk(http.StatusInternalServerError, err, c)
-	if err != nil {
-		return
-	}
-
 	newMsg := db.Message{
 		ID:        uuid.New().String(),
 		Date:      time.Now(),
@@ -117,6 +105,10 @@ func handleAddMessage(c *gin.Context) {
 			newMsg,
 		)
 
+		marshalled, _ := json.Marshal(ws.Message{
+			Method: ws.EvtAddMessage,
+			Data: newMsg,
+		})
 		channel.Send <- marshalled
 	}()
 
