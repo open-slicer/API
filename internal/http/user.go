@@ -21,6 +21,11 @@ type reqRegister struct {
 	PublicKey string `json:"public_key"`
 }
 
+type resGetUser struct {
+	statusMessage
+	Data db.User `json:"data"`
+}
+
 func handleRegister(c *gin.Context) {
 	// TODO: nil checks.
 	req := reqRegister{}
@@ -75,5 +80,37 @@ func handleRegister(c *gin.Context) {
 	c.JSON(code, statusMessage{
 		Code:    code,
 		Message: "Registered; login required.",
+	})
+}
+
+func handleGetUser(c *gin.Context) {
+	var user db.User
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
+		ctx,
+		bson.M{
+			"_id": c.Param("user"),
+		},
+	).Decode(&user); err != nil {
+		if err == mongo.ErrNoDocuments {
+			chk(http.StatusNotFound, err, c)
+			return
+		}
+
+		chk(http.StatusInternalServerError, err, c)
+		return
+	}
+
+	// TODO: Make some sort of filter. The response body still contains data.Password; it's simply empty.
+	user.Password = ""
+
+	code := http.StatusOK
+	c.JSON(code, resGetUser{
+		statusMessage: statusMessage{
+			Code:    code,
+			Message: "User fetched.",
+		},
+		Data: user,
 	})
 }

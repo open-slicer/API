@@ -28,6 +28,12 @@ func register(r *gin.Engine) {
 			auth.GET("/refresh", authMiddleware.RefreshHandler)
 		}
 
+		user := v1.Group("/user")
+		user.Use(authMiddlewareFunc)
+		{
+			user.GET("/:user", handleGetUser)
+		}
+
 		channel := v1.Group("/channel")
 		channel.Use(authMiddlewareFunc)
 		{
@@ -36,8 +42,10 @@ func register(r *gin.Engine) {
 			specific := channel.Group("/:channel")
 			{
 				specific.GET("", handleGetChannel)
+
 				specific.GET("/message", handleGetMessage)
 				specific.POST("/message", handleAddMessage)
+
 				specific.POST("/join", handleInviteJoin)
 				specific.PUT("/user", handleInviteAdd)
 			}
