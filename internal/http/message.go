@@ -7,11 +7,13 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"net/http"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
+	"strconv"
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
@@ -25,6 +27,11 @@ type reqAddMessage struct {
 type resAddMessage struct {
 	statusMessage
 	Data db.Message `json:"data"`
+}
+
+type resGetMessage struct {
+	statusMessage
+	Data []db.Message `json:"data"`
 }
 
 func handleAddMessage(c *gin.Context) {
@@ -120,5 +127,60 @@ func handleAddMessage(c *gin.Context) {
 			Code:    code,
 		},
 		Data: newMsg,
+	})
+}
+
+func handleGetMessage(c *gin.Context) {
+	var limit int64 = 50
+	if limitStr := c.Query("limit"); limitStr != "" {
+		var err error
+
+		limit, err = strconv.ParseInt(limitStr, 10, 32)
+		chk(http.StatusBadRequest, err, c)
+		if err != nil {
+			return
+		}
+
+		if limit > 100 {
+			chk(http.StatusBadRequest, errors.New("limit must be <= 100"), c)
+			return
+		}
+	}
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	cur, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("messages").Find(
+		ctx,
+		bson.M{
+			"channel_id": c.Param("channel"),
+		},
+		&options.FindOptions{
+			Limit: &limit,
+		},
+	)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			chk(http.StatusNotFound, err, c)
+			return
+		}
+		chk(http.StatusInternalServerError, err, c)
+		return
+	}
+
+	var res []db.Message
+
+	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
+	err = cur.All(ctx, &res)
+	chk(http.StatusInternalServerError, err, c)
+	if err != nil {
+		return
+	}
+
+	stat := http.StatusOK
+	c.JSON(stat, resGetMessage{
+		statusMessage: statusMessage{
+			Code:    stat,
+			Message: "Messages fetched.",
+		},
+		Data: res,
 	})
 }
