@@ -36,7 +36,8 @@ func init() {
 		Realm:       "slicer",
 		Key:         key,
 		IdentityKey: "username",
-		Timeout: time.Hour * 12,
+		// Not sure as to whether or not this should be longer.
+		MaxRefresh:  time.Hour * 2,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
@@ -61,7 +62,7 @@ func init() {
 
 			var userDoc db.User
 
-			ctx, _ := context.WithTimeout(context.Background(), time.Second * 2)
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 			if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(ctx, bson.M{
 				"username": req.Username,
 			}).Decode(&userDoc); err != nil {
