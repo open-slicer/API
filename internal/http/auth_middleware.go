@@ -36,8 +36,7 @@ func init() {
 		Realm:       "slicer",
 		Key:         key,
 		IdentityKey: "username",
-		// Not sure as to whether or not this should be longer.
-		MaxRefresh:  time.Hour * 2,
+		MaxRefresh:  time.Hour * 48,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
