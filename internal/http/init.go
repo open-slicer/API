@@ -39,6 +39,7 @@ func register(r *gin.Engine) {
 				specific.GET("/message", handleGetMessage)
 				specific.POST("/message", handleAddMessage)
 				specific.POST("/join", handleInviteJoin)
+				specific.PUT("/user", handleInviteAdd)
 			}
 		}
 
