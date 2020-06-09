@@ -1,6 +1,7 @@
 package http
 
 import (
+	"slicerapi/internal/config"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
 
@@ -11,7 +12,7 @@ import (
 func Start() {
 	r := gin.New()
 	register(r)
-	util.Chk(r.Run(util.Config.HTTP.Address))
+	util.Chk(r.Run(config.Config.HTTP.Address))
 }
 
 // register registers all routes and middleware.
