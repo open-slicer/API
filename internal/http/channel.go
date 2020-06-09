@@ -110,7 +110,7 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	for i := range body.Users {
-		if ws.C.Clients[i] == nil {
+		if _, ok := ws.C.Clients[i]; !ok {
 			response.Failures = append(response.Failures, i)
 			continue
 		}
