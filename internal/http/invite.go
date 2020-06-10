@@ -66,6 +66,22 @@ func handleInviteJoin(c *gin.Context) {
 			return
 		}
 
+		go func() {
+			_, _ = db.Mongo.Database(config.C.MongoDB.Name).Collection("users").UpdateOne(
+				ctx,
+				bson.M{
+					"_id": userID,
+				},
+				bson.D{{
+					"$push",
+					bson.D{{
+						"channels",
+						channel.ID,
+					}},
+				}},
+			)
+		}()
+
 		c.JSON(stat, statusMessage{
 			Code:    stat,
 			Message: "Invite accepted.",

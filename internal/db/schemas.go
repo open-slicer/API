@@ -19,6 +19,7 @@ type User struct {
 	Username  string    `bson:"username" json:"username,omitempty"`
 	Password  string    `bson:"password" json:"password,omitempty"`
 	PublicKey string    `bson:"public_key" json:"public_key,omitempty"`
+	Channels  []string  `bson:"channels" json:"channels,omitempty"`
 }
 
 type Message struct {

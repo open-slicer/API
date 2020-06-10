@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -85,12 +86,13 @@ func handleRegister(c *gin.Context) {
 
 func handleGetUser(c *gin.Context) {
 	var user db.User
+	userID := c.Param("user")
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
 		ctx,
 		bson.M{
-			"_id": c.Param("user"),
+			"_id": userID,
 		},
 	).Decode(&user); err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -102,7 +104,10 @@ func handleGetUser(c *gin.Context) {
 		return
 	}
 
-	// TODO: Make some sort of filter.
+	reqID := jwt.ExtractClaims(c)["id"].(string)
+	if userID != reqID {
+		user.Channels = nil
+	}
 	user.Password = ""
 
 	code := http.StatusOK

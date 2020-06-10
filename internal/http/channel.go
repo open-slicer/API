@@ -97,6 +97,20 @@ func handleAddChannel(c *gin.Context) {
 				}
 			}()
 		}
+
+		_, _ = db.Mongo.Database(config.C.MongoDB.Name).Collection("users").UpdateOne(
+			ctx,
+			bson.M{
+				"_id": createdBy,
+			},
+			bson.D{{
+				"$push",
+				bson.D{{
+					"channels",
+					channelDoc.ID,
+				}},
+			}},
+		)
 	}()
 
 	response := resAddChannel{
