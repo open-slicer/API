@@ -35,11 +35,6 @@ func handleRegister(c *gin.Context) {
 		return
 	}
 
-	if len(req.Password) < 10 {
-		chk(http.StatusBadRequest, errors.New("password too short; must be at least 10 characters"), c)
-		return
-	}
-
 	var user db.User
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
@@ -52,6 +47,11 @@ func handleRegister(c *gin.Context) {
 		return
 	} else if err != mongo.ErrNoDocuments {
 		chk(http.StatusInternalServerError, err, c)
+		return
+	}
+
+	if len(req.Password) < 10 {
+		chk(http.StatusBadRequest, errors.New("password too short; must be at least 10 characters"), c)
 		return
 	}
 
