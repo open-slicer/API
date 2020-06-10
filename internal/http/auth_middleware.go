@@ -37,6 +37,7 @@ func init() {
 		Key:         key,
 		IdentityKey: "username",
 		MaxRefresh:  time.Hour * 48,
+		TokenLookup: "header: Authorization, query: token",
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*user); ok {
 				return jwt.MapClaims{
