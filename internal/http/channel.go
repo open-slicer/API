@@ -58,6 +58,7 @@ func handleAddChannel(c *gin.Context) {
 		Users:    map[string]bool{createdBy: true},
 		Children: body.Children,
 		Parent:   body.Parent,
+		Owner:    createdBy,
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)

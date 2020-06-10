@@ -10,6 +10,7 @@ type Channel struct {
 	Date     time.Time       `bson:"date" json:"date,omitempty"`
 	Pending  map[string]bool `bson:"pending" json:"pending,omitempty"`
 	Users    map[string]bool `bson:"users" json:"users,omitempty"`
+	Owner    string          `bson:"owner" json:"owner,omitempty"`
 	Children []string        `bson:"children" json:"children,omitempty"`
 	Parent   string          `bson:"parent" json:"parent,omitempty"`
 }
