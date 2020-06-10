@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"net/http"
 	"slicerapi/internal/util"
 	"time"
 
@@ -29,6 +30,9 @@ var methods = map[string]func(*Client, Message){
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(_r *http.Request) bool {
+		return true
+	},
 }
 
 // Message is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
