@@ -1,65 +1,68 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
-	"slicerapi/internal/util"
+	"go.mongodb.org/mongo-driver/bson"
+	"slicerapi/internal/config"
+	"slicerapi/internal/db"
+	"time"
 )
 
 func handleChangeListen(c *Client, msg Message) {
-	chID, ok := msg.Data.(map[string]string)["channel_id"]
+	chIDs, ok := msg.Data.(map[string][]string)["channel_ids"]
 	if !ok {
-		marshalled, err := json.Marshal(Message{
-			Method: errMissingArgument,
-			Data: map[string]interface{}{
-				"arg": "channel_id",
-			},
-		})
-		if err != nil {
-			util.Chk(err, true)
-			c.Send <- []byte(errJSON)
-		}
+		var user db.User
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 
-		c.Send <- marshalled
-		return
-	}
-
-	channel, ok := C.Channels[chID]
-	if !ok {
-		var err error
-		channel, err = NewChannel(chID)
-
-		if err != nil {
-			marshalled, err := json.Marshal(Message{
-				Method: errInvalidArgument,
-				Data: map[string]interface{}{
-					"arg": "channel_id",
+		if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(ctx, bson.M{
+			"_id": c.ID,
+		}).Decode(&user); err != nil {
+			marshalled, _ := json.Marshal(Message{
+				Method: errDB,
+				Data: map[string]string{
+					"err": err.Error(),
 				},
 			})
-			if err != nil {
-				util.Chk(err, true)
-				c.Send <- []byte(errJSON)
-			}
 
 			c.Send <- marshalled
 			return
 		}
 
-		go channel.Listen()
+		chIDs = user.Channels
 	}
 
-	if _, ok := channel.Clients[chID]; ok {
-		channel.unregister <- c
-	} else {
-		channel.register <- c
+	for _, v := range chIDs {
+		channel, ok := C.Channels[v]
+		if !ok {
+			var err error
+			channel, err = NewChannel(v)
+
+			if err != nil {
+				marshalled, _ := json.Marshal(Message{
+					Method: errInvalidArgument,
+					Data: map[string]interface{}{
+						"arg": "channel_id",
+					},
+				})
+
+				c.Send <- marshalled
+				return
+			}
+
+			go channel.Listen()
+		}
+
+		if _, ok := channel.Clients[v]; ok {
+			channel.unregister <- c
+		} else {
+			channel.register <- c
+		}
 	}
 
-	marshalled, err := json.Marshal(Message{
+	marshalled, _ := json.Marshal(Message{
 		Method: evtChangeListen,
 	})
-	if err != nil {
-		util.Chk(err, true)
-		c.Send <- []byte(errJSON)
-	}
 
 	c.Send <- marshalled
 }

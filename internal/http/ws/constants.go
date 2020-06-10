@@ -23,6 +23,7 @@ const (
 	clientErr = mErr + "C_"
 
 	errJSON            = serverErr + "JSON"
+	errDB              = serverErr + "DB"
 	errMissingArgument = clientErr + "MISSING_ARG"
 	errInvalidArgument = clientErr + "INVALID_ARG"
 )
