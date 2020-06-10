@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
+	"slicerapi/internal/http/ws"
 	"time"
 )
 
@@ -146,4 +148,28 @@ func handleInviteAdd(c *gin.Context) {
 		chk(500, err, c)
 		return
 	}
+
+	go func() {
+		marshalled, _ := json.Marshal(ws.Message{
+			Method: ws.EvtAddInvite,
+			Data:   channel,
+		})
+
+		client, ok := ws.C.Clients[body.ID]
+		if !ok {
+			return
+		}
+
+		go func() {
+			for _, conn := range client {
+				conn.Send <- marshalled
+			}
+		}()
+	}()
+
+	stat := http.StatusCreated
+	c.JSON(stat, statusMessage{
+		Code:    stat,
+		Message: "Invite created for user.",
+	})
 }
