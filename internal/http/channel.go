@@ -23,8 +23,7 @@ type reqAddChannel struct {
 
 type resAddChannel struct {
 	statusMessage
-	Data     db.Channel `json:"data"`
-	Failures []string   `json:"failures"`
+	Data db.Channel `json:"data"`
 }
 
 type resGetChannel struct {
