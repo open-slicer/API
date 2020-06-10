@@ -19,6 +19,7 @@ type reqAddChannel struct {
 	Name     string          `json:"name"`
 	Users    map[string]bool `json:"users"`
 	Children []string        `json:"children"`
+	Parent   string          `json:"parent"`
 }
 
 type resAddChannel struct {
@@ -42,6 +43,9 @@ func handleAddChannel(c *gin.Context) {
 	if body.Name == "" {
 		body.Name = "New Channel"
 	}
+	if body.Parent == "" {
+		body.Parent = "slicer_origin"
+	}
 
 	createdBy := jwt.ExtractClaims(c)["id"].(string)
 	id := uuid.New().String()
@@ -53,6 +57,7 @@ func handleAddChannel(c *gin.Context) {
 		Pending:  body.Users,
 		Users:    map[string]bool{createdBy: true},
 		Children: body.Children,
+		Parent:   body.Parent,
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)

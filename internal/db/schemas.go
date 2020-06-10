@@ -11,6 +11,7 @@ type Channel struct {
 	Pending  map[string]bool `bson:"pending" json:"pending,omitempty"`
 	Users    map[string]bool `bson:"users" json:"users,omitempty"`
 	Children []string        `bson:"children" json:"children,omitempty"`
+	Parent   string          `bson:"parent" json:"parent,omitempty"`
 }
 
 type User struct {
