@@ -1,11 +1,11 @@
 package http
 
 import (
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"slicerapi/internal/config"
 	"slicerapi/internal/http/ws"
 	"slicerapi/internal/util"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Start starts the HTTP server.
@@ -17,6 +17,13 @@ func Start() {
 
 // register registers all routes and middleware.
 func register(r *gin.Engine) {
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowHeaders:     []string{"*"},
+		AllowMethods:     []string{"*"},
+		AllowCredentials: true,
+	}))
+
 	authMiddlewareFunc := authMiddleware.MiddlewareFunc()
 
 	v1 := r.Group("/api/v1")
