@@ -58,13 +58,9 @@ func register(r *gin.Engine) {
 			}
 		}
 
-		websocket := v1.Group("/ws")
-		websocket.Use(authMiddlewareFunc)
-		{
-			ws.NewController(true)
-			go ws.C.Run()
+		ws.NewController(true)
+		go ws.C.Run()
 
-			websocket.GET("", ws.Handle)
-		}
+		v1.GET("/ws", authMiddlewareFunc, ws.Handle)
 	}
 }
