@@ -71,6 +71,7 @@ func handleRegister(c *gin.Context) {
 			Username:  req.Username,
 			Password:  string(hash),
 			PublicKey: req.PublicKey,
+			Channels:  []string{},
 		},
 	); err != nil {
 		chk(http.StatusInternalServerError, err, c)

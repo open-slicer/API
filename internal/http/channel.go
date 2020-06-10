@@ -29,7 +29,7 @@ type resAddChannel struct {
 
 type resGetChannel struct {
 	statusMessage
-	Data db.Channel `json:"data"`
+	Data []db.Channel `json:"data"`
 }
 
 func handleAddChannel(c *gin.Context) {
@@ -125,15 +125,41 @@ func handleAddChannel(c *gin.Context) {
 }
 
 func handleGetChannel(c *gin.Context) {
-	var channel db.Channel
+	var channels []db.Channel
+
+	toGet := []string{c.Param("channel")}
+	if q := c.Query("for"); q == jwt.ExtractClaims(c)["id"].(string) {
+		var user db.User
+
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+		if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
+			ctx,
+			bson.M{
+				"_id": q,
+			},
+		).Decode(&user); err != nil {
+			if err == mongo.ErrNoDocuments {
+				chk(http.StatusNotFound, err, c)
+				return
+			}
+
+			chk(http.StatusInternalServerError, err, c)
+			return
+		}
+
+		toGet = append(toGet, user.Channels...)
+	}
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
-	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
+	cur, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").Find(
 		ctx,
 		bson.M{
-			"_id": c.Param("channel"),
+			"_id": bson.D{{
+				"$in", toGet,
+			}},
 		},
-	).Decode(&channel); err != nil {
+	)
+	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			chk(http.StatusNotFound, err, c)
 			return
@@ -143,12 +169,19 @@ func handleGetChannel(c *gin.Context) {
 		return
 	}
 
+	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
+	err = cur.All(ctx, &channels)
+	chk(http.StatusInternalServerError, err, c)
+	if err != nil {
+		return
+	}
+
 	code := http.StatusOK
 	c.JSON(code, resGetChannel{
 		statusMessage: statusMessage{
 			Code:    code,
-			Message: "Channel fetched.",
+			Message: "Channels fetched.",
 		},
-		Data: channel,
+		Data: channels,
 	})
 }
