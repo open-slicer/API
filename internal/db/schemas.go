@@ -5,12 +5,12 @@ import (
 )
 
 type Channel struct {
-	ID      string          `bson:"_id" json:"id,omitempty"`
-	Name    string          `bson:"name" json:"name,omitempty"`
-	Date    time.Time       `bson:"date" json:"date,omitempty"`
-	Pending map[string]bool `bson:"pending" json:"pending,omitempty"`
-	Users   map[string]bool `bson:"users" json:"users,omitempty"`
-	Parent  string          `bson:"parent" json:"parent,omitempty"`
+	ID       string          `bson:"_id" json:"id,omitempty"`
+	Name     string          `bson:"name" json:"name,omitempty"`
+	Date     time.Time       `bson:"date" json:"date,omitempty"`
+	Pending  map[string]bool `bson:"pending" json:"pending,omitempty"`
+	Users    map[string]bool `bson:"users" json:"users,omitempty"`
+	Children []string        `bson:"children" json:"children,omitempty"`
 }
 
 type User struct {
