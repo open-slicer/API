@@ -64,9 +64,7 @@ func register(r *gin.Engine) {
 			ws.NewController(true)
 			go ws.C.Run()
 
-			websocket.GET("", func(c *gin.Context) {
-				ws.Handle(c)
-			})
+			websocket.GET("", ws.Handle)
 		}
 	}
 }
