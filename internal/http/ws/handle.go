@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"net/http"
+	"slicerapi/internal/db"
 	"slicerapi/internal/util"
 	"time"
 
@@ -23,10 +24,6 @@ const (
 	maxMessageSize = 512
 )
 
-var methods = map[string]func(*Client, Message){
-	reqChangeListen: handleChangeListen,
-}
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -37,8 +34,25 @@ var upgrader = websocket.Upgrader{
 
 // Message is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
 type Message struct {
-	Method string      `json:"method"`
-	Data   interface{} `json:"data"`
+	Method string `json:"method"`
+}
+
+// ErrMessage is a generic error message.
+type ErrMessage struct {
+	Message
+	Data string `json:"data"`
+}
+
+// ChannelMessage is a ws message including a channel.
+type ChannelMessage struct {
+	Message
+	Data db.Channel `json:"data"`
+}
+
+// ChatMessage is a message including a db.Message.
+type ChatMessage struct {
+	Message
+	Data db.Message `json:"data"`
 }
 
 // Client is a websocket client interfacing with the server.
@@ -63,7 +77,8 @@ func (c *Client) readPump() {
 	})
 
 	for {
-		message := Message{}
+		// TODO: This **really** needs to be adapted to allow for multiple methods to be used.
+		message := changeListenMessage{}
 		err := c.conn.ReadJSON(&message)
 		util.Chk(err, true)
 		if err != nil {
@@ -74,11 +89,9 @@ func (c *Client) readPump() {
 		}
 
 		if message.Method == "" {
-			marshalled, err := json.Marshal(Message{
-				Method: errMissingArgument,
-				Data: map[string]interface{}{
-					"arg": "method",
-				},
+			marshalled, err := json.Marshal(ErrMessage{
+				Message: Message{Method: errMissingArgument},
+				Data:    "method",
 			})
 			if err != nil {
 				util.Chk(err, true)
@@ -89,13 +102,10 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		mth, ok := methods[message.Method]
-		if !ok {
-			marshalled, err := json.Marshal(Message{
-				Method: errInvalidArgument,
-				Data: map[string]interface{}{
-					"arg": "method",
-				},
+		if message.Method != reqChangeListen {
+			marshalled, err := json.Marshal(ErrMessage{
+				Message: Message{Method: errInvalidArgument},
+				Data:    "method",
 			})
 			if err != nil {
 				util.Chk(err, true)
@@ -106,7 +116,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		mth(c, message)
+		handleChangeListen(c, message)
 	}
 }
 

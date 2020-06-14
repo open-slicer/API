@@ -3,16 +3,17 @@ package http
 import (
 	"context"
 	"encoding/json"
-	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"time"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type reqAddChannel struct {
@@ -72,9 +73,9 @@ func handleAddChannel(c *gin.Context) {
 
 	go func() {
 		if createdUser, ok := ws.C.Clients[createdBy]; ok {
-			createMarshalled, _ := json.Marshal(ws.Message{
-				Method: ws.EvtAddChannel,
-				Data:   channelDoc,
+			createMarshalled, _ := json.Marshal(ws.ChannelMessage{
+				Message: ws.Message{Method: ws.EvtAddChannel},
+				Data:    channelDoc,
 			})
 
 			for _, createdClient := range createdUser {
@@ -82,9 +83,9 @@ func handleAddChannel(c *gin.Context) {
 			}
 		}
 
-		marshalled, _ := json.Marshal(ws.Message{
-			Method: ws.EvtAddInvite,
-			Data:   channelDoc,
+		marshalled, _ := json.Marshal(ws.ChannelMessage{
+			Message: ws.Message{Method: ws.EvtAddInvite},
+			Data:    channelDoc,
 		})
 
 		for i := range body.Users {

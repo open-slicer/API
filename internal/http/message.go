@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"net/http"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
@@ -15,6 +11,11 @@ import (
 	"slicerapi/internal/util"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
@@ -105,9 +106,9 @@ func handleAddMessage(c *gin.Context) {
 			newMsg,
 		)
 
-		marshalled, _ := json.Marshal(ws.Message{
-			Method: ws.EvtAddMessage,
-			Data: newMsg,
+		marshalled, _ := json.Marshal(ws.ChatMessage{
+			Message: ws.Message{Method: ws.EvtAddMessage},
+			Data:    newMsg,
 		})
 		channel.Send <- marshalled
 	}()

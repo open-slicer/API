@@ -3,47 +3,48 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"go.mongodb.org/mongo-driver/bson"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-func handleChangeListen(c *Client, msg Message) {
-	chIDs, ok := msg.Data.(map[string][]string)["channel_ids"]
-	if !ok {
+type changeListenMessage struct {
+	Message
+	Data []string `json:"data"`
+}
+
+func handleChangeListen(c *Client, msg changeListenMessage) {
+	if len(msg.Data) < 1 {
 		var user db.User
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 
 		if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(ctx, bson.M{
 			"_id": c.ID,
 		}).Decode(&user); err != nil {
-			marshalled, _ := json.Marshal(Message{
-				Method: errDB,
-				Data: map[string]string{
-					"err": err.Error(),
-				},
+			marshalled, _ := json.Marshal(ErrMessage{
+				Message: Message{Method: errDB},
+				Data:    err.Error(),
 			})
 
 			c.Send <- marshalled
 			return
 		}
 
-		chIDs = user.Channels
+		msg.Data = user.Channels
 	}
 
-	for _, v := range chIDs {
+	for _, v := range msg.Data {
 		channel, ok := C.Channels[v]
 		if !ok {
 			var err error
 			channel, err = NewChannel(v)
 
 			if err != nil {
-				marshalled, _ := json.Marshal(Message{
-					Method: errInvalidArgument,
-					Data: map[string]interface{}{
-						"arg": "channel_id",
-					},
+				marshalled, _ := json.Marshal(ErrMessage{
+					Message: Message{Method: errInvalidArgument},
+					Data:    "channel_id",
 				})
 
 				c.Send <- marshalled

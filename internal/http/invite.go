@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"slicerapi/internal/http/ws"
 	"time"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type reqInviteAdd struct {
@@ -150,9 +151,9 @@ func handleInviteAdd(c *gin.Context) {
 	}
 
 	go func() {
-		marshalled, _ := json.Marshal(ws.Message{
-			Method: ws.EvtAddInvite,
-			Data:   channel,
+		marshalled, _ := json.Marshal(ws.ChannelMessage{
+			Message: ws.Message{Method: ws.EvtAddInvite},
+			Data:    channel,
 		})
 
 		client, ok := ws.C.Clients[body.ID]
