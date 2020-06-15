@@ -3,7 +3,6 @@ package ws
 import (
 	"encoding/json"
 	"net/http"
-	"slicerapi/internal/db"
 	"slicerapi/internal/util"
 	"time"
 
@@ -30,29 +29,6 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(_r *http.Request) bool {
 		return true
 	},
-}
-
-// Message is a general message sent to or received by the server over WS. It's *not* specifically a chat message.
-type Message struct {
-	Method string `json:"method"`
-}
-
-// ErrMessage is a generic error message.
-type ErrMessage struct {
-	Message
-	Data string `json:"data"`
-}
-
-// ChannelMessage is a ws message including a channel.
-type ChannelMessage struct {
-	Message
-	Data db.Channel `json:"data"`
-}
-
-// ChatMessage is a message including a db.Message.
-type ChatMessage struct {
-	Message
-	Data db.Message `json:"data"`
 }
 
 // Client is a websocket client interfacing with the server.
@@ -88,6 +64,7 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// If a method isn't present, send ERR_C_MISSING_ARG.
 		if message.Method == "" {
 			marshalled, err := json.Marshal(ErrMessage{
 				Message: Message{Method: errMissingArgument},
@@ -102,6 +79,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
+		// Handle the REQ_CNG_LISTEN websocket request.
 		if message.Method != reqChangeListen {
 			marshalled, err := json.Marshal(ErrMessage{
 				Message: Message{Method: errInvalidArgument},
@@ -131,6 +109,7 @@ func (c *Client) writePump() {
 		case message, ok := <-c.Send:
 			util.Chk(c.conn.SetWriteDeadline(time.Now().Add(writeWait)), true)
 			if !ok {
+				// Close if not ok.
 				util.Chk(c.conn.WriteMessage(websocket.CloseMessage, []byte{}), true)
 				return
 			}
@@ -143,6 +122,7 @@ func (c *Client) writePump() {
 			_, err = w.Write(message)
 			util.Chk(err, true)
 
+			// Write the rest of the send channel if possible.
 			n := len(c.Send)
 			for i := 0; i < n; i++ {
 				_, err = w.Write(<-c.Send)
@@ -153,6 +133,7 @@ func (c *Client) writePump() {
 				return
 			}
 		case <-ticker.C:
+			// Send the ping message on tick.
 			util.Chk(c.conn.SetWriteDeadline(time.Now().Add(writeWait)), true)
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
