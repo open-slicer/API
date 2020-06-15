@@ -139,6 +139,10 @@ func handleInviteAdd(c *gin.Context) {
 		return
 	}
 
+	// Make sure Pending actually exists before editing it.
+	if channel.Pending == nil {
+		channel.Pending = map[string]bool{}
+	}
 	// Make the user pending.
 	channel.Pending[body.ID] = true
 
