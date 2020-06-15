@@ -161,6 +161,7 @@ func handleGetMessage(c *gin.Context) {
 		ctx,
 		bson.M{
 			"channel_id": c.Param("channel"),
+			"date":       bson.M{"$gte": c.Query("from"), "$lte": c.Query("to")},
 		},
 		&options.FindOptions{
 			Limit: &limit,
