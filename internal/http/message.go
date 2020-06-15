@@ -35,6 +35,11 @@ type resGetMessage struct {
 	Data []db.Message `json:"data"`
 }
 
+// handleAddMessage is the main handler for requests asking for messages to be sent.
+// This should be as high-performance as possible; we want to keep message send times as low as possible.
+// Currently — on a local network — this takes around 7ms. The overhead is due to querying the DB.
+// This also assumes that inserting and sending completed; unsure as to whether or not we should confirm this.
+// It's essentially reliant on the status of the channel query.
 func handleAddMessage(c *gin.Context) {
 	body := reqAddMessage{}
 	err := c.ShouldBindJSON(&body)
@@ -53,6 +58,7 @@ func handleAddMessage(c *gin.Context) {
 
 	var chDoc db.Channel
 
+	// Find the channel.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
 		ctx,
@@ -69,13 +75,19 @@ func handleAddMessage(c *gin.Context) {
 		return
 	}
 
+	// If the user isn't in the users array, abort.
 	signedID := jwt.ExtractClaims(c)["id"].(string)
 	_, ok := chDoc.Users[signedID]
 	if !ok {
-		chk(http.StatusForbidden, errors.New("can't send messages in this channel; not in users set"), c)
+		chk(
+			http.StatusForbidden,
+			errors.New("can't send messages in this channel; not in users array. use the /api/v1/:channel/join endpoint"),
+			c,
+		)
 		return
 	}
 
+	// Create the websocket channel if it exists.
 	channel, ok := ws.C.Channels[chID]
 	if !ok {
 		channel, err = ws.NewChannel(chID)
@@ -100,6 +112,7 @@ func handleAddMessage(c *gin.Context) {
 		ChannelID: chID,
 	}
 	go func() {
+		// Insert the new message and send it over ws.
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 		go db.Mongo.Database(config.C.MongoDB.Name).Collection("messages").InsertOne(
 			ctx,
@@ -123,7 +136,9 @@ func handleAddMessage(c *gin.Context) {
 	})
 }
 
+// handleGetMessage handles requests asking for 1 or more messages.
 func handleGetMessage(c *gin.Context) {
+	// The default limit is 50. This can go up to 100.
 	var limit int64 = 50
 	if limitStr := c.Query("limit"); limitStr != "" {
 		var err error
@@ -140,6 +155,7 @@ func handleGetMessage(c *gin.Context) {
 		}
 	}
 
+	// Get the messages in the channel with the limit.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	cur, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("messages").Find(
 		ctx,
@@ -161,6 +177,7 @@ func handleGetMessage(c *gin.Context) {
 
 	var res []db.Message
 
+	// Decode the results into res.
 	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
 	err = cur.All(ctx, &res)
 	chk(http.StatusInternalServerError, err, c)
