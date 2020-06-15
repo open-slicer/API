@@ -33,6 +33,7 @@ type resGetChannel struct {
 	Data []db.Channel `json:"data"`
 }
 
+// handleAddChannel handles requests asking for channels to be created.
 func handleAddChannel(c *gin.Context) {
 	body := reqAddChannel{}
 	err := c.ShouldBindJSON(&body)
@@ -62,6 +63,7 @@ func handleAddChannel(c *gin.Context) {
 		Owner:    createdBy,
 	}
 
+	// Insert the channel.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if _, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").InsertOne(
 		ctx,
@@ -72,6 +74,7 @@ func handleAddChannel(c *gin.Context) {
 	}
 
 	go func() {
+		// Send the EVT_ADD_CHANNEL event to createdBy over ws.
 		if createdUser, ok := ws.C.Clients[createdBy]; ok {
 			createMarshalled, _ := json.Marshal(ws.ChannelMessage{
 				Message: ws.Message{Method: ws.EvtAddChannel},
@@ -83,6 +86,7 @@ func handleAddChannel(c *gin.Context) {
 			}
 		}
 
+		// Send EVT_ADD_INVITE to every invited user over ws.
 		marshalled, _ := json.Marshal(ws.ChannelMessage{
 			Message: ws.Message{Method: ws.EvtAddInvite},
 			Data:    channelDoc,
@@ -101,16 +105,17 @@ func handleAddChannel(c *gin.Context) {
 			}()
 		}
 
+		// Push the new channel to the user who created the channel's channels array.
 		_, _ = db.Mongo.Database(config.C.MongoDB.Name).Collection("users").UpdateOne(
 			ctx,
 			bson.M{
 				"_id": createdBy,
 			},
 			bson.D{{
-				"$push",
-				bson.D{{
-					"channels",
-					channelDoc.ID,
+				Key: "$push",
+				Value: bson.D{{
+					Key:   "channels",
+					Value: channelDoc.ID,
 				}},
 			}},
 		)
@@ -127,13 +132,16 @@ func handleAddChannel(c *gin.Context) {
 	c.JSON(response.Code, response)
 }
 
+// handleGetChannel handles requests asking for channel info.
 func handleGetChannel(c *gin.Context) {
 	var channels []db.Channel
 
 	toGet := []string{c.Param("channel")}
+	// If there's a `for` query param:
 	if q := c.Query("for"); q == jwt.ExtractClaims(c)["id"].(string) {
 		var user db.User
 
+		// Find the `for` user.
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 		if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(
 			ctx,
@@ -150,15 +158,18 @@ func handleGetChannel(c *gin.Context) {
 			return
 		}
 
+		// Append to toGet with the user's channels.
 		toGet = append(toGet, user.Channels...)
 	}
 
+	// Find each channel.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	cur, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").Find(
 		ctx,
 		bson.M{
 			"_id": bson.D{{
-				"$in", toGet,
+				Key:   "$in",
+				Value: toGet,
 			}},
 		},
 	)
@@ -172,6 +183,7 @@ func handleGetChannel(c *gin.Context) {
 		return
 	}
 
+	// Extract the channels.
 	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
 	err = cur.All(ctx, &channels)
 	chk(http.StatusInternalServerError, err, c)
