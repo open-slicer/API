@@ -20,12 +20,15 @@ type reqInviteAdd struct {
 	ID string `json:"id"`
 }
 
+// handleInviteJoin handles requests asking to join channels.
+// This will only work if the user has previously been added.
 func handleInviteJoin(c *gin.Context) {
 	userID := jwt.ExtractClaims(c)["id"].(string)
 	chID := c.Param("channel")
 
 	var channel db.Channel
 
+	// Find the channel.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
 		ctx,
@@ -45,6 +48,7 @@ func handleInviteJoin(c *gin.Context) {
 
 	_, ok := channel.Pending[userID]
 	if ok {
+		// If the user is pending (invited), accept them and move their user ID from the pending array to the users array.
 		delete(channel.Pending, userID)
 
 		channel.Users[userID] = true
@@ -55,13 +59,13 @@ func handleInviteJoin(c *gin.Context) {
 				"_id": channel.ID,
 			},
 			bson.D{{
-				"$set",
-				bson.D{{
-					"pending",
-					channel.Pending,
+				Key: "$set",
+				Value: bson.D{{
+					Key:   "pending",
+					Value: channel.Pending,
 				}, {
-					"users",
-					channel.Users,
+					Key:   "users",
+					Value: channel.Users,
 				}},
 			}},
 		); err != nil {
@@ -70,16 +74,17 @@ func handleInviteJoin(c *gin.Context) {
 		}
 
 		go func() {
+			// Also add the channel to the user's channels array.
 			_, _ = db.Mongo.Database(config.C.MongoDB.Name).Collection("users").UpdateOne(
 				ctx,
 				bson.M{
 					"_id": userID,
 				},
 				bson.D{{
-					"$push",
-					bson.D{{
-						"channels",
-						channel.ID,
+					Key: "$push",
+					Value: bson.D{{
+						Key:   "channels",
+						Value: channel.ID,
 					}},
 				}},
 			)
@@ -99,6 +104,8 @@ func handleInviteJoin(c *gin.Context) {
 	})
 }
 
+// handleInviteAdd handles requests asking for invites to be created.
+// This allows the handleInviteJoin endpoint to be used.
 func handleInviteAdd(c *gin.Context) {
 	body := reqInviteAdd{}
 	err := c.ShouldBindJSON(&body)
@@ -110,6 +117,7 @@ func handleInviteAdd(c *gin.Context) {
 	chID := c.Param("channel")
 	var channel db.Channel
 
+	// Find the channel.
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(
 		ctx,
@@ -125,13 +133,16 @@ func handleInviteAdd(c *gin.Context) {
 		return
 	}
 
+	// If the user is already in the channel's users array, they've already joined.
 	if _, ok := channel.Users[body.ID]; ok {
 		chk(http.StatusConflict, errors.New("user already joined"), c)
 		return
 	}
 
+	// Make the user pending.
 	channel.Pending[body.ID] = true
 
+	// Set the new pending value.
 	ctx, _ = context.WithTimeout(context.Background(), time.Second*2)
 	if _, err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").UpdateOne(
 		ctx,
@@ -139,10 +150,10 @@ func handleInviteAdd(c *gin.Context) {
 			"_id": channel.ID,
 		},
 		bson.D{{
-			"$set",
-			bson.D{{
-				"pending",
-				channel.Pending,
+			Key: "$set",
+			Value: bson.D{{
+				Key:   "pending",
+				Value: channel.Pending,
 			}},
 		}},
 	); err != nil {
@@ -150,6 +161,7 @@ func handleInviteAdd(c *gin.Context) {
 		return
 	}
 
+	// Send an EVT_ADD_INVITE event over ws.
 	go func() {
 		marshalled, _ := json.Marshal(ws.ChannelMessage{
 			Message: ws.Message{Method: ws.EvtAddInvite},
