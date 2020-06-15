@@ -2,10 +2,11 @@ package ws
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson"
 	"slicerapi/internal/config"
 	"slicerapi/internal/db"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Channel is a realm in which users can perform actions, like sending messages.
@@ -21,7 +22,8 @@ type Channel struct {
 func NewChannel(chID string) (*Channel, error) {
 	var chDoc db.Channel
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second * 2)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+	// Find the channel with the UUID of chID.
 	if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("channels").FindOne(ctx, bson.M{
 		"_id": chID,
 	}).Decode(&chDoc); err != nil {
@@ -50,6 +52,7 @@ func (ch *Channel) Listen() {
 			}
 		case client := <-ch.unregister:
 			if c, ok := ch.Clients[client.ID]; ok {
+				// Delete the client from all stores.
 				length := len(c)
 				c[length-1], c[client.index] = c[client.index], c[length-1]
 				c = c[:length-1]
