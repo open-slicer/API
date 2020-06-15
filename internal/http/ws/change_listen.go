@@ -15,11 +15,14 @@ type changeListenMessage struct {
 	Data []string `json:"data"`
 }
 
+// handleChangeListen handles requests asking to receive EVT_ADD_MESSAGE methods on specific channels.
+// If a channel isn't provided, all user channels are listened on.
 func handleChangeListen(c *Client, msg changeListenMessage) {
 	if len(msg.Data) < 1 {
 		var user db.User
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
 
+		// Get the user's channels; they didn't ask for any specific ones to be listened on.
 		if err := db.Mongo.Database(config.C.MongoDB.Name).Collection("users").FindOne(ctx, bson.M{
 			"_id": c.ID,
 		}).Decode(&user); err != nil {
@@ -54,6 +57,7 @@ func handleChangeListen(c *Client, msg changeListenMessage) {
 			go channel.Listen()
 		}
 
+		// Toggle whether or not the user is listening for each channel.
 		if _, ok := channel.Clients[v]; ok {
 			channel.unregister <- c
 		} else {
